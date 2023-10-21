@@ -1,7 +1,6 @@
 mod image;
 
-use log::{info, debug, error};
-use pixels::{Pixels, Error, SurfaceTexture};
+use pixels::{Pixels, SurfaceTexture};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -9,13 +8,12 @@ use winit::{
 };
 
 
-const WIDTH: u32 = 800;
-const HEIGHT: u32 = 600;
+const WIDTH: usize = 800;
+const HEIGHT: usize = 600;
 const WINDOW_TITLE: &str = "Sloth Rasterizer";
 
 fn main() {
     env_logger::init();
-    error!("Debug message");
 
     let event_loop = EventLoop::new();
     let window = {
@@ -33,7 +31,7 @@ fn main() {
     let mut pixels = {
         let window_size = window.inner_size();
         let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &window);
-        Pixels::new(WIDTH, HEIGHT, surface_texture).unwrap()
+        Pixels::new(WIDTH as u32, HEIGHT as u32, surface_texture).unwrap()
     };
 
     let mut image = image::Image::new(WIDTH, HEIGHT);
@@ -47,7 +45,10 @@ fn main() {
                 ..
             } => *control_flow = ControlFlow::Exit,
             Event::RedrawRequested(_) => {
-                image.clear(image::Color::new(255, 0, 0, 255));
+                image.clear(image::Color::new(0, 0, 0, 255));
+                image.set_pixel(200, image::Color::new(255, 0, 0, 255)).unwrap();
+                image.line(100, 100, 400, 400, image::Color::new(255, 255, 0, 255));
+                image.flip_vertically();
                 image.write_to_buffer(pixels.frame_mut());
                 pixels.render().unwrap();
             }
