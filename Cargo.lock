@@ -1307,6 +1307,7 @@ dependencies = [
  "env_logger",
  "image",
  "log",
+ "num-traits",
  "pixels",
  "winit",
 ]
