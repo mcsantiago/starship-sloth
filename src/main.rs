@@ -56,7 +56,7 @@ fn main() {
                 let delta = start_time.elapsed();
                 draw(&mut image, &mut pixels, &model);
                 let time_since_last_frame = last_frame_start.elapsed();
-                println!("FPS: {}", 1.0 / time_since_last_frame.as_secs_f32());
+                //println!("FPS: {}", 1.0 / time_since_last_frame.as_secs_f32());
                 last_frame_start = std::time::Instant::now();
             }
             _ => (),
@@ -69,8 +69,7 @@ fn main() {
 fn draw(image: &mut image::Image, pixels: &mut Pixels, model: &model::Model) {
     image.clear(image::Color::new(0, 0, 0, 255));
 
-    for (i, vert) in model.verts.iter().enumerate() {
-        let face = &model.faces[i];
+    for (_, face) in model.faces.iter().enumerate() {
         for j in 0..3 {
             let v0 = model.verts.get(face[j] as usize).unwrap();
             let v1 = model.verts.get(face[(j + 1) % 3] as usize).unwrap();
