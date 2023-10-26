@@ -9,6 +9,43 @@ impl<T: Float> Vec2<T> {
     pub fn new(x: T, y: T) -> Self {
         Self { x, y }
     }
+
+    pub fn add(&self, other: &Self) -> Self {
+        Self {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
+
+    pub fn sub(&self, other: &Self) -> Self {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
+
+    pub fn mul(&self, other: &Self) -> Self {
+        Self {
+            x: self.x * other.x,
+            y: self.y * other.y,
+        }
+    }
+}
+
+pub trait Point {
+    fn to_i32_tuple(&self) -> (i32, i32);
+}
+
+impl Point for (i32, i32) {
+    fn to_i32_tuple(&self) -> (i32, i32) {
+        *self
+    }
+}
+
+impl Point for &Vec2f {
+    fn to_i32_tuple(&self) -> (i32, i32) {
+        (self.x as i32, self.y as i32)
+    }
 }
 
 pub struct Vec3<T: Float> {

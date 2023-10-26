@@ -68,21 +68,12 @@ fn main() {
 
 fn draw(image: &mut image::Image, pixels: &mut Pixels, model: &model::Model) {
     image.clear(image::Color::new(0, 0, 0, 255));
-
-    for (_, face) in model.faces.iter().enumerate() {
-        for j in 0..3 {
-            let v0 = model.verts.get(face[j] as usize).unwrap();
-            let v1 = model.verts.get(face[(j + 1) % 3] as usize).unwrap();
-
-            let x0 = ((v0.x + 1.0) * WIDTH as f32 / 2.0) as i32;
-            let y0 = ((v0.y + 1.0) * HEIGHT as f32 / 2.0) as i32;
-            let x1 = ((v1.x + 1.0) * WIDTH as f32 / 2.0) as i32;
-            let y1 = ((v1.y + 1.0) * HEIGHT as f32 / 2.0) as i32;
-
-            image.line(x0, y0, x1, y1, image::Color::new(255, 255, 255, 255));
-        }
-    }
-        
+    image.draw_model(model, image::Color::new(255, 0, 255, 255));
+    let p0 = geometry::Vec2f::new(10.0, 70.0);
+    let p1 = geometry::Vec2f::new(50.0, 160.0);
+    let p2 = geometry::Vec2f::new(70.0, 80.0);
+    let color = image::Color::new(255, 0, 255, 255);
+    image.triangle2d(&p0, &p1, &p2, color);
     image.flip_vertically();
     image.write_to_buffer(pixels.frame_mut());
     pixels.render().unwrap();

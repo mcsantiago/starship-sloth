@@ -1,3 +1,5 @@
+use log::info;
+
 use crate::geometry::Vec3f;
 
 pub struct Model {
@@ -47,7 +49,7 @@ impl Model {
             }
         }
 
-        println!("Model loaded: {} verts, {} faces", verts.len(), faces.len());
+        info!("Model loaded: {} verts, {} faces", verts.len(), faces.len());
 
         Self { verts, faces }
     }
