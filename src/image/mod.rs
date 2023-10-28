@@ -1,5 +1,7 @@
 mod error;
 
+use std::mem::size_of;
+
 use error::Error;
 
 use crate::{geometry::PixelPoint, model};
@@ -27,7 +29,7 @@ impl Color {
 
 impl Image {
     pub fn new(width: usize, height: usize) -> Self {
-        let pixels = vec![0; (width * height * 4) as usize];
+        let pixels = vec![0; (width * height * size_of::<Color>()) as usize];
         Self {
             width,
             height,
@@ -139,8 +141,9 @@ impl Image {
     }
 
     pub fn triangle2d<P: PixelPoint + Copy>(&mut self, mut p0: P, mut p1: P, mut p2: P, color: Color) {
-        // Bubble sort the points by y coordinate
         // TODO: Maybe consider barycentric coordinates for interpolation of values within the triangle
+
+        // Bubble sort the points by y coordinate
         if p0.to_i32_tuple().1 > p1.to_i32_tuple().1 {
             let temp = p0;
             p0 = p1;
