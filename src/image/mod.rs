@@ -211,17 +211,21 @@ impl Image {
 
     pub fn draw_model(&mut self, model: &model::Model, color: Color) {
         for (_, face) in model.faces.iter().enumerate() {
-            for j in 0..3 {
-                let v0 = model.verts.get(face[j] as usize).unwrap();
-                let v1 = model.verts.get(face[(j + 1) % 3] as usize).unwrap();
+            // Generate random color
+            let color = Color::new(rand::random::<u8>(), rand::random::<u8>(), rand::random::<u8>(), 255);
 
-                let x0 = ((v0.x + 1.0) * self.width as f32 / 2.0) as i32;
-                let y0 = ((v0.y + 1.0) * self.height as f32 / 2.0) as i32;
-                let x1 = ((v1.x + 1.0) * self.width as f32 / 2.0) as i32;
-                let y1 = ((v1.y + 1.0) * self.height as f32 / 2.0) as i32;
+            let v0 = model.verts.get(face[0] as usize).unwrap();
+            let v1 = model.verts.get(face[1] as usize).unwrap();
+            let v2 = model.verts.get(face[2] as usize).unwrap();
 
-                self.line((x0, y0), (x1, y1), color);
-            }
+            let x0 = ((v0.x + 1.0) * self.width as f32 / 2.0) as i32;
+            let y0 = ((v0.y + 1.0) * self.height as f32 / 2.0) as i32;
+            let x1 = ((v1.x + 1.0) * self.width as f32 / 2.0) as i32;
+            let y1 = ((v1.y + 1.0) * self.height as f32 / 2.0) as i32;
+            let x2 = ((v2.x + 1.0) * self.width as f32 / 2.0) as i32;
+            let y2 = ((v2.y + 1.0) * self.height as f32 / 2.0) as i32;
+
+            self.triangle2d((x0,y0), (x1,y1), (x2,y2), color)
         }
     }
 
