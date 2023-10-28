@@ -72,8 +72,8 @@ fn draw(image: &mut image::Image, pixels: &mut Pixels, model: &model::Model) {
     let p0 = geometry::Vec2f::new(10.0, 70.0);
     let p1 = geometry::Vec2f::new(50.0, 160.0);
     let p2 = geometry::Vec2f::new(70.0, 80.0);
-    let color = image::Color::new(255, 0, 255, 255);
-    image.triangle2d(&p0, &p1, &p2, color);
+    let color = image::Color::new(255, 153, 255, 255);
+    image.triangle2d(p0, p1, p2, color);
     image.flip_vertically();
     image.write_to_buffer(pixels.frame_mut());
     pixels.render().unwrap();

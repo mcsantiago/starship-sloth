@@ -2,7 +2,7 @@ mod error;
 
 use error::Error;
 
-use crate::{geometry::{Vec2f, Point}, model};
+use crate::{geometry::PixelPoint, model};
 
 #[derive(Debug)]
 pub struct Image {
@@ -73,12 +73,13 @@ impl Image {
     // https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
     //
     // Assumes that (0, 0) is at the center of the screen
+    // and that the coordinates are discrete values for pixels
     ////////////////////////////////////////////////////////////////
-    pub fn line<P: Point>(&mut self, start: P, end: P, color: Color) {
-        let mut x0 = start.to_i32_tuple().0;
-        let mut y0 = start.to_i32_tuple().1;
-        let mut x1 = end.to_i32_tuple().0;
-        let mut y1 = end.to_i32_tuple().1;
+    pub fn line(&mut self, start: (i32, i32), end: (i32, i32), color: Color) {
+        let mut x0 = start.0;
+        let mut y0 = start.1;
+        let mut x1 = end.0;
+        let mut y1 = end.1;
 
 
         if x0 < 0 || x0 >= self.width as i32 || y0 < 0 || y0 >= self.height as i32 ||
@@ -137,10 +138,72 @@ impl Image {
         }
     }
 
-    pub fn triangle2d(&mut self, p0: &Vec2f, p1: &Vec2f, p2: &Vec2f, color: Color) {
-        self.line(p0, p1, color);
-        self.line(p1, p2, color);
-        self.line(p2, p0, color);
+    pub fn triangle2d<P: PixelPoint + Copy>(&mut self, mut p0: P, mut p1: P, mut p2: P, color: Color) {
+        // Bubble sort the points by y coordinate
+        // TODO: Maybe consider barycentric coordinates for interpolation of values within the triangle
+        if p0.to_i32_tuple().1 > p1.to_i32_tuple().1 {
+            let temp = p0;
+            p0 = p1;
+            p1 = temp;
+        }
+        if p0.to_i32_tuple().1 > p2.to_i32_tuple().1 {
+            let temp = p0;
+            p0 = p2;
+            p2 = temp;
+        }
+        if p1.to_i32_tuple().1 > p2.to_i32_tuple().1 {
+            let temp = p1;
+            p1 = p2;
+            p2 = temp;
+        }
+
+        let p0_tuple = p0.to_i32_tuple();
+        let p1_tuple = p1.to_i32_tuple();
+        let p2_tuple = p2.to_i32_tuple();
+
+        let line_a = self.compute_line_parameters(p0_tuple, p2_tuple);
+        let line_b = self.compute_line_parameters(p0_tuple, p1_tuple);
+        let line_c = self.compute_line_parameters(p1_tuple, p2_tuple);
+
+        for y in p0_tuple.1 .. p1_tuple.1 {
+            let start_x = match line_a {
+                Some((gradient, intercept)) => ((y as f32 - intercept) / gradient) as i32,
+                None => p0_tuple.0,
+            };
+            let end_x = match line_b {
+                Some((gradient, intercept)) => ((y as f32 - intercept) / gradient) as i32,
+                None => p0_tuple.0,
+            };
+            self.line((start_x, y), (end_x, y), color);
+        }
+        for y in p1_tuple.1 .. p2_tuple.1 {
+            let start_x = match line_a {
+                Some((gradient, intercept)) => ((y as f32 - intercept) / gradient) as i32,
+                None => p0_tuple.0,
+            };
+            let end_x = match line_c {
+                Some((gradient, intercept)) => ((y as f32 - intercept) / gradient) as i32,
+                None => p1_tuple.0,
+            };
+            self.line((start_x, y), (end_x, y), color);
+        }
+    }
+
+    fn compute_line_parameters<P: PixelPoint + Copy>(&mut self, p0: P, p1: P) -> Option<(f32, f32)> {
+        // TODO: Maybe this method should be moved to geometry module?
+        let p0_tuple = p0.to_i32_tuple();
+        let p1_tuple = p1.to_i32_tuple();
+
+        let dx = p1_tuple.0 - p0_tuple.0;
+        let dy = p1_tuple.1 - p0_tuple.1;
+
+        if dx == 0 {
+            None
+        } else {
+            let gradient = dy as f32 / dx as f32;
+            let intercept = p0_tuple.1 as f32 - gradient * p0_tuple.0 as f32;
+            Some((gradient, intercept))
+        }
     }
 
     pub fn draw_model(&mut self, model: &model::Model, color: Color) {

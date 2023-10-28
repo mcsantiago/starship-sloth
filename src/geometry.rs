@@ -1,5 +1,6 @@
 use num_traits::Float;
 
+#[derive(Debug, Clone, Copy)]
 pub struct Vec2<T: Float> {
     pub x: T,
     pub y: T,
@@ -32,22 +33,23 @@ impl<T: Float> Vec2<T> {
     }
 }
 
-pub trait Point {
+pub trait PixelPoint {
     fn to_i32_tuple(&self) -> (i32, i32);
 }
 
-impl Point for (i32, i32) {
+impl PixelPoint for (i32, i32) {
     fn to_i32_tuple(&self) -> (i32, i32) {
         *self
     }
 }
 
-impl Point for &Vec2f {
+impl PixelPoint for Vec2f {
     fn to_i32_tuple(&self) -> (i32, i32) {
         (self.x as i32, self.y as i32)
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct Vec3<T: Float> {
     pub x: T,
     pub y: T,
