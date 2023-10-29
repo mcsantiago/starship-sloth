@@ -1,37 +1,45 @@
 use num_traits::Float;
+use std::ops::{Add, Sub};
 
-#[derive(Debug, Clone, Copy)]
-pub struct Vec2<T: Float> {
-    pub x: T,
-    pub y: T,
+macro_rules! impl_vec2_ops {
+    ($Vec2Type:ident, $T:ty) => {
+        #[derive(Debug, Clone, Copy, PartialEq)]
+        pub struct $Vec2Type {
+            pub x: $T,
+            pub y: $T,
+        }
+
+        impl $Vec2Type {
+            pub fn new(x: $T, y: $T) -> Self {
+                Self { x, y }
+            }
+        }
+
+        impl std::ops::Add for $Vec2Type {
+            type Output = Self;
+            fn add(self, other: Self) -> Self {
+                Self {
+                    x: self.x + other.x,
+                    y: self.y + other.y,
+                }
+            }
+        }
+        impl std::ops::Sub for $Vec2Type {
+            type Output = Self;
+            fn sub(self, other: Self) -> Self {
+                Self {
+                    x: self.x - other.x,
+                    y: self.y - other.y,
+                }
+            }
+        }
+    };
 }
 
-impl<T: Float> Vec2<T> {
-    pub fn new(x: T, y: T) -> Self {
-        Self { x, y }
-    }
-
-    pub fn add(&self, other: &Self) -> Self {
-        Self {
-            x: self.x + other.x,
-            y: self.y + other.y,
-        }
-    }
-
-    pub fn sub(&self, other: &Self) -> Self {
-        Self {
-            x: self.x - other.x,
-            y: self.y - other.y,
-        }
-    }
-
-    pub fn mul(&self, other: &Self) -> Self {
-        Self {
-            x: self.x * other.x,
-            y: self.y * other.y,
-        }
-    }
-}
+impl_vec2_ops!(Vec2f, f32);
+impl_vec2_ops!(Vec2d, f64);
+impl_vec2_ops!(Vec2i, i32);
+impl_vec2_ops!(Vec2u, u32);
 
 pub trait PixelPoint {
     fn to_i32_tuple(&self) -> (i32, i32);
@@ -49,66 +57,80 @@ impl PixelPoint for Vec2f {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct Vec3<T: Float> {
-    pub x: T,
-    pub y: T,
-    pub z: T,
-}
-
-impl<T: Float> Vec3<T> {
-    pub fn new(x: T, y: T, z: T) -> Self {
-        Self { x, y, z }
-    }
-
-    pub fn cross(&self, other: &Self) -> Self {
-        Self {
-            x: self.y * other.z - self.z * other.y,
-            y: self.z * other.x - self.x * other.z,
-            z: self.x * other.y - self.y * other.x,
-        }
-    }
-
-    pub fn add(&self, other: &Self) -> Self {
-        Self {
-            x: self.x + other.x,
-            y: self.y + other.y,
-            z: self.z + other.z,
-        }
-    }
-
-    pub fn sub(&self, other: &Self) -> Self {
-        Self {
-            x: self.x - other.x,
-            y: self.y - other.y,
-            z: self.z - other.z,
-        }
-    }
-
-    pub fn mul(&self, other: &Self) -> Self {
-        Self {
-            x: self.x * other.x,
-            y: self.y * other.y,
-            z: self.z * other.z,
-        }
-    }
-
-    pub fn norm(&self) -> T {
-        self.x * self.x + self.y * self.y + self.z * self.z
-    }
-
-    pub fn normalize(&self) -> Self {
-        let norm = self.norm().sqrt();
-        Self {
-            x: self.x / norm,
-            y: self.y / norm,
-            z: self.z / norm,
-        }
+impl PixelPoint for Vec2i {
+    fn to_i32_tuple(&self) -> (i32, i32) {
+        (self.x as i32, self.y as i32)
     }
 }
 
-pub type Vec2f = Vec2<f32>;
-pub type Vec2d = Vec2<f64>;
+trait Cross {
+    fn cross(&self, other: &Self) -> Self;
+}
 
-pub type Vec3f = Vec3<f32>;
-pub type Vec3d = Vec3<f64>;
+macro_rules! impl_vec3_ops {
+    ($Vec3Type:ident, $T:ty) => {
+        #[derive(Debug, Clone, Copy, PartialEq)]
+        pub struct $Vec3Type {
+            pub x: $T,
+            pub y: $T,
+            pub z: $T,
+        }
+
+        impl $Vec3Type {
+            pub fn new(x: $T, y: $T, z: $T) -> Self {
+                Self { x, y, z }
+            }
+
+            pub fn cross(&self, other: Self) -> Self {
+                Self {
+                    x: self.y * other.z - self.z * other.y,
+                    y: self.z * other.x - self.x * other.z,
+                    z: self.x * other.y - self.y * other.x,
+                }
+            }
+
+            pub fn dot(&self, other: &Self) -> f32 {
+                (self.x * other.x + self.y * other.y + self.z * other.z) as f32
+            }
+
+            pub fn length(&self) -> f32 {
+                self.dot(self).sqrt()
+            }
+
+            pub fn normalize(&self) -> Self {
+                let len = (self.length()) as $T;
+                Self {
+                    x: self.x / len,
+                    y: self.y / len,
+                    z: self.z / len,
+                }
+            }
+        }
+
+        impl std::ops::Add for $Vec3Type {
+            type Output = Self;
+            fn add(self, other: Self) -> Self {
+                Self {
+                    x: self.x + other.x,
+                    y: self.y + other.y,
+                    z: self.z + other.z,
+                }
+            }
+        }
+        impl std::ops::Sub for $Vec3Type {
+            type Output = Self;
+            fn sub(self, other: Self) -> Self {
+                Self {
+                    x: self.x - other.x,
+                    y: self.y - other.y,
+                    z: self.z - other.z,
+                }
+            }
+        }
+    };
+}
+
+impl_vec3_ops!(Vec3f, f32);
+impl_vec3_ops!(Vec3d, f64);
+impl_vec3_ops!(Vec3i, i32);
+
