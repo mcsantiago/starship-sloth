@@ -134,3 +134,18 @@ impl_vec3_ops!(Vec3f, f32);
 impl_vec3_ops!(Vec3d, f64);
 impl_vec3_ops!(Vec3i, i32);
 
+pub fn compute_line_parameters<P: PixelPoint + Copy>(p0: P, p1: P) -> Option<(f32, f32)> {
+    let p0_tuple = p0.to_i32_tuple();
+    let p1_tuple = p1.to_i32_tuple();
+
+    let dx = p1_tuple.0 - p0_tuple.0;
+    let dy = p1_tuple.1 - p0_tuple.1;
+
+    if dx == 0 {
+        None
+    } else {
+        let gradient = dy as f32 / dx as f32;
+        let intercept = p0_tuple.1 as f32 - gradient * p0_tuple.0 as f32;
+        Some((gradient, intercept))
+    }
+}

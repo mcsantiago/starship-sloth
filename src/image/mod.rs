@@ -4,13 +4,14 @@ use std::mem::size_of;
 
 use error::Error;
 
-use crate::{geometry::{PixelPoint, Vec3f, Vec2f, Vec2i}, model};
+use crate::{geometry::{PixelPoint, Vec3f, Vec2i, compute_line_parameters}, model};
 
 #[derive(Debug)]
 pub struct Image {
     width: usize,
     height: usize,
     pixels: Vec<u8>,
+    z_buffer: Vec<f32>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -29,11 +30,11 @@ impl Color {
 
 impl Image {
     pub fn new(width: usize, height: usize) -> Self {
-        let pixels = vec![0; (width * height * size_of::<Color>()) as usize];
         Self {
             width,
             height,
-            pixels,
+            pixels: vec![0; (width * height * size_of::<Color>()) as usize],
+            z_buffer: vec![std::f32::MAX; (width * height) as usize],
         }
     }
 
@@ -164,9 +165,9 @@ impl Image {
         let p1_tuple = p1.to_i32_tuple();
         let p2_tuple = p2.to_i32_tuple();
 
-        let line_a = self.compute_line_parameters(p0_tuple, p2_tuple);
-        let line_b = self.compute_line_parameters(p0_tuple, p1_tuple);
-        let line_c = self.compute_line_parameters(p1_tuple, p2_tuple);
+        let line_a = compute_line_parameters(p0_tuple, p2_tuple);
+        let line_b = compute_line_parameters(p0_tuple, p1_tuple);
+        let line_c = compute_line_parameters(p1_tuple, p2_tuple);
 
         for y in p0_tuple.1 .. p1_tuple.1 {
             let start_x = match line_a {
@@ -192,20 +193,10 @@ impl Image {
         }
     }
 
-    fn compute_line_parameters<P: PixelPoint + Copy>(&mut self, p0: P, p1: P) -> Option<(f32, f32)> {
-        // TODO: Maybe this method should be moved to geometry module?
-        let p0_tuple = p0.to_i32_tuple();
-        let p1_tuple = p1.to_i32_tuple();
 
-        let dx = p1_tuple.0 - p0_tuple.0;
-        let dy = p1_tuple.1 - p0_tuple.1;
-
-        if dx == 0 {
-            None
-        } else {
-            let gradient = dy as f32 / dx as f32;
-            let intercept = p0_tuple.1 as f32 - gradient * p0_tuple.0 as f32;
-            Some((gradient, intercept))
+    fn reset_z_buffer(&mut self) {
+        for i in 0..self.z_buffer.len() {
+            self.z_buffer[i] = std::f32::MAX;
         }
     }
 
