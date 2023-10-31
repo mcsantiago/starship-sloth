@@ -189,16 +189,16 @@ impl Image {
 
             for idx in face.iter() {
                 let v = model.verts.get(*idx as usize).unwrap();
-                let x = (v.x + 1.0) * self.width as f32 / 2.0;
-                let y = (v.y + 1.0) * self.height as f32 / 2.0;
+                let x = ((v.x + 1.0) * self.width as f32 / 2.0) as i32;
+                let y = ((v.y + 1.0) * self.height as f32 / 2.0) as i32;
                 let z = v.z;
-                screen_coords.push(Vec3f::new(x, y, z));
+                screen_coords.push(Vec3f::new(x as f32, y as f32, z));
                 world_coords.push(Vec3f::new(v.x, v.y, v.z));
             }
 
             let n = (world_coords[2] - world_coords[0]).cross(world_coords[1] - world_coords[0]).normalize();
             let intensity = n.dot(&light_dir);
-            if intensity >= 0.0 {
+            if intensity > 0.0 {
                 self.triangle2d(screen_coords[0],
                                 screen_coords[1],
                                 screen_coords[2],
