@@ -4,7 +4,7 @@ use std::mem::size_of;
 
 use error::Error;
 
-use crate::{geometry::{PixelPoint, Vec3f, Vec2i, compute_line_parameters}, model};
+use crate::{geometry::{Point, Vec3f, Vec2i, Vec2f}, model};
 
 #[derive(Debug)]
 pub struct Image {
@@ -141,62 +141,42 @@ impl Image {
         }
     }
 
-    pub fn triangle2d<P: PixelPoint + Copy>(&mut self, mut p0: P, mut p1: P, mut p2: P, color: Color) {
-        // TODO: Maybe consider barycentric coordinates for interpolation of values within the triangle
+    pub fn triangle2d(&mut self, p0: Vec3f, p1: Vec3f, p2: Vec3f, color: Color) {
+        let mut bbox_min = Vec2i::new(std::i32::MAX, std::i32::MAX);
+        let mut bbox_max = Vec2i::new(std::i32::MIN, std::i32::MIN);
 
-        // Bubble sort the points by y coordinate
-        if p0.to_i32_tuple().1 > p1.to_i32_tuple().1 {
-            let temp = p0;
-            p0 = p1;
-            p1 = temp;
-        }
-        if p0.to_i32_tuple().1 > p2.to_i32_tuple().1 {
-            let temp = p0;
-            p0 = p2;
-            p2 = temp;
-        }
-        if p1.to_i32_tuple().1 > p2.to_i32_tuple().1 {
-            let temp = p1;
-            p1 = p2;
-            p2 = temp;
+        for v in &[p0, p1, p2] {
+            bbox_min.x = bbox_min.x.min(v.x as i32);
+            bbox_min.y = bbox_min.y.min(v.y as i32);
+            bbox_max.x = bbox_max.x.max(v.x as i32);
+            bbox_max.y = bbox_max.y.max(v.y as i32);
         }
 
-        let p0_tuple = p0.to_i32_tuple();
-        let p1_tuple = p1.to_i32_tuple();
-        let p2_tuple = p2.to_i32_tuple();
-
-        let line_a = compute_line_parameters(p0_tuple, p2_tuple);
-        let line_b = compute_line_parameters(p0_tuple, p1_tuple);
-        let line_c = compute_line_parameters(p1_tuple, p2_tuple);
-
-        for y in p0_tuple.1 .. p1_tuple.1 {
-            let start_x = match line_a {
-                Some((gradient, intercept)) => ((y as f32 - intercept) / gradient) as i32,
-                None => p0_tuple.0,
-            };
-            let end_x = match line_b {
-                Some((gradient, intercept)) => ((y as f32 - intercept) / gradient) as i32,
-                None => p0_tuple.0,
-            };
-            self.line((start_x, y), (end_x, y), color);
-        }
-        for y in p1_tuple.1 .. p2_tuple.1 {
-            let start_x = match line_a {
-                Some((gradient, intercept)) => ((y as f32 - intercept) / gradient) as i32,
-                None => p0_tuple.0,
-            };
-            let end_x = match line_c {
-                Some((gradient, intercept)) => ((y as f32 - intercept) / gradient) as i32,
-                None => p1_tuple.0,
-            };
-            self.line((start_x, y), (end_x, y), color);
+        for x in bbox_min.x..bbox_max.x {
+            for y in bbox_min.y..bbox_max.y {
+                let pos = Vec3f::new(x as f32, y as f32, p0.z + p1.z + p2.z);
+                let is_inside = self.is_inside_triangle(p0, p1, p2, pos);
+                if is_inside {
+                    let index = (x + y * self.width as i32) as usize;
+                    if self.z_buffer[index] < pos.z {
+                        self.z_buffer[index] = pos.z;
+                        self.set_pixel(index, color).unwrap();
+                    }
+                }
+            }
         }
     }
 
+    fn is_inside_triangle(&mut self, p0: Vec3f, p1: Vec3f, p2: Vec3f, p: Vec3f) -> bool {
+        let w1 = (p0.x * (p2.y - p0.y) + (p.y - p0.y) * (p2.x - p0.x) - p.x * (p2.y - p0.y)) as f32 / ((p1.y - p0.y) * (p2.x - p0.x) - (p1.x - p0.x) * (p2.y - p0.y)) as f32;
+        let w2 = (p.y as f32 - p0.y as f32 - w1 * (p1.y - p0.y) as f32) as f32 / (p2.y - p0.y) as f32;
 
-    fn reset_z_buffer(&mut self) {
+        w1 >= 0.0 && w2 >= 0.0 && w1 + w2 <= 1.0
+    }
+
+    pub fn reset_z_buffer(&mut self) {
         for i in 0..self.z_buffer.len() {
-            self.z_buffer[i] = std::f32::MAX;
+            self.z_buffer[i] = std::f32::MIN;
         }
     }
 
@@ -204,20 +184,21 @@ impl Image {
         let light_dir = Vec3f::new(0.0, 0.0, -1.0); // This should come from scene
 
         for (_, face) in model.faces.iter().enumerate() {
-            let mut screen_coords: Vec<Vec2i> = Vec::new(); // This should come from Camera
+            let mut screen_coords: Vec<Vec3f> = Vec::new(); // This should come from Camera
             let mut world_coords: Vec<Vec3f> = Vec::new();  // This should come from Scene
 
             for idx in face.iter() {
                 let v = model.verts.get(*idx as usize).unwrap();
-                let x = ((v.x + 1.0) * self.width as f32 / 2.0) as i32;
-                let y = ((v.y + 1.0) * self.height as f32 / 2.0) as i32;
-                screen_coords.push(Vec2i::new(x, y));
+                let x = (v.x + 1.0) * self.width as f32 / 2.0;
+                let y = (v.y + 1.0) * self.height as f32 / 2.0;
+                let z = v.z;
+                screen_coords.push(Vec3f::new(x, y, z));
                 world_coords.push(Vec3f::new(v.x, v.y, v.z));
             }
 
             let n = (world_coords[2] - world_coords[0]).cross(world_coords[1] - world_coords[0]).normalize();
             let intensity = n.dot(&light_dir);
-            if intensity > 0.0 {
+            if intensity >= 0.0 {
                 self.triangle2d(screen_coords[0],
                                 screen_coords[1],
                                 screen_coords[2],
@@ -243,7 +224,6 @@ impl Image {
         }
     }
 
-    #[allow(dead_code)]
     pub fn save(&self, filename: &str) {
         let mut imgbuf = image::ImageBuffer::new(self.width as u32, self.height as u32);
         for (x, y, pixel) in imgbuf.enumerate_pixels_mut() {
@@ -275,3 +255,4 @@ impl Image {
         }
     }
 }
+
