@@ -41,25 +41,83 @@ impl_vec2_ops!(Vec2d, f64);
 impl_vec2_ops!(Vec2i, i32);
 impl_vec2_ops!(Vec2u, u32);
 
-pub trait PixelPoint {
+pub trait Point {
     fn to_i32_tuple(&self) -> (i32, i32);
+    fn to_i32_thruple(&self) -> (i32, i32, i32);
+    fn to_vec3f(&self) -> Vec3f;
+    fn to_vec3i(&self) -> Vec3i;
+    fn to_vec2i(&self) -> Vec2i;
 }
 
-impl PixelPoint for (i32, i32) {
+impl Point for (i32, i32, i32) {
     fn to_i32_tuple(&self) -> (i32, i32) {
+        (self.0, self.1)
+    }
+    fn to_i32_thruple(&self) -> (i32, i32, i32) {
+        *self
+    }
+    fn to_vec3f(&self) -> Vec3f {
+        Vec3f::new(self.0 as f32, self.1 as f32, self.2 as f32)
+    }
+    fn to_vec2i(&self) -> Vec2i {
+        Vec2i::new(self.0, self.1)
+    }
+    fn to_vec3i(&self) -> Vec3i {
+        Vec3i::new(self.0, self.1, self.2)
+    }
+}
+
+impl Point for Vec2f {
+    fn to_i32_tuple(&self) -> (i32, i32) {
+        (self.x as i32, self.y as i32)
+    }
+    fn to_i32_thruple(&self) -> (i32, i32, i32) {
+        (self.x as i32, self.y as i32, 0)
+    }
+    fn to_vec3f(&self) -> Vec3f {
+        Vec3f::new(self.x, self.y, 0.0)
+    }
+    fn to_vec3i(&self) -> Vec3i {
+        Vec3i::new(self.x as i32, self.y as i32, 0)
+    }
+    fn to_vec2i(&self) -> Vec2i {
+        Vec2i::new(self.x as i32, self.y as i32)
+    }
+}
+
+impl Point for Vec2i {
+    fn to_i32_tuple(&self) -> (i32, i32) {
+        (self.x as i32, self.y as i32)
+    }
+    fn to_i32_thruple(&self) -> (i32, i32, i32) {
+        (self.x as i32, self.y as i32, 0)
+    }
+    fn to_vec3f(&self) -> Vec3f {
+        Vec3f::new(self.x as f32, self.y as f32, 0.0)
+    }
+    fn to_vec3i(&self) -> Vec3i {
+        Vec3i::new(self.x, self.y, 0)
+    }
+    fn to_vec2i(&self) -> Vec2i {
         *self
     }
 }
 
-impl PixelPoint for Vec2f {
+impl Point for Vec3f {
     fn to_i32_tuple(&self) -> (i32, i32) {
         (self.x as i32, self.y as i32)
     }
-}
-
-impl PixelPoint for Vec2i {
-    fn to_i32_tuple(&self) -> (i32, i32) {
-        (self.x as i32, self.y as i32)
+    fn to_i32_thruple(&self) -> (i32, i32, i32) {
+        (self.x as i32, self.y as i32, self.z as i32)
+    }
+    fn to_vec3f(&self) -> Vec3f {
+        *self
+    }
+    fn to_vec3i(&self) -> Vec3i {
+        Vec3i::new(self.x as i32, self.y as i32, self.z as i32)
+    }
+    fn to_vec2i(&self) -> Vec2i {
+        Vec2i::new(self.x as i32, self.y as i32)
     }
 }
 
@@ -134,7 +192,7 @@ impl_vec3_ops!(Vec3f, f32);
 impl_vec3_ops!(Vec3d, f64);
 impl_vec3_ops!(Vec3i, i32);
 
-pub fn compute_line_parameters<P: PixelPoint + Copy>(p0: P, p1: P) -> Option<(f32, f32)> {
+pub fn compute_line_parameters<P: Point + Copy>(p0: P, p1: P) -> Option<(f32, f32)> {
     let p0_tuple = p0.to_i32_tuple();
     let p1_tuple = p1.to_i32_tuple();
 
@@ -149,3 +207,4 @@ pub fn compute_line_parameters<P: PixelPoint + Copy>(p0: P, p1: P) -> Option<(f3
         Some((gradient, intercept))
     }
 }
+
