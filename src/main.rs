@@ -16,7 +16,11 @@ const WINDOW_TITLE: &str = "SlothEngine";
 fn main() {
     env_logger::init();
 
+    let screenshot = std::env::args().any(|arg| arg == "--screenshot");
+
+
     let model = model::Model::new("objs/african_head.obj");
+
     let event_loop = EventLoop::new();
     let window = {
         let size = LogicalSize::new(WIDTH as f64, HEIGHT as f64);
@@ -38,43 +42,55 @@ fn main() {
 
     let mut image = image::Image::new(WIDTH, HEIGHT);
 
-    let start_time = std::time::Instant::now();
-    let animation_duration = std::time::Duration::from_secs(10);
-    let mut last_frame_start = start_time;
+
+    if screenshot {
+        println!("Taking screenshot...");
+        draw(&mut image, &mut pixels, &model, screenshot);
+
+    } else {
+        let start_time = std::time::Instant::now();
+        let animation_duration = std::time::Duration::from_secs(10);
+        let mut last_frame_start = start_time;
+
+        event_loop.run(move |event, _, control_flow| {
+            *control_flow = ControlFlow::Wait;
 
 
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
-
-
-        match event {
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => *control_flow = ControlFlow::Exit,
-            Event::RedrawRequested(_) => {
-                let delta = start_time.elapsed();
-                draw(&mut image, &mut pixels, &model);
-                let time_since_last_frame = last_frame_start.elapsed();
-                //println!("FPS: {}", 1.0 / time_since_last_frame.as_secs_f32());
-                last_frame_start = std::time::Instant::now();
+            match event {
+                Event::WindowEvent {
+                    event: WindowEvent::CloseRequested,
+                    ..
+                } => *control_flow = ControlFlow::Exit,
+                Event::RedrawRequested(_) => {
+                    let delta = start_time.elapsed();
+                    draw(&mut image, &mut pixels, &model, screenshot);
+                    let time_since_last_frame = last_frame_start.elapsed();
+                    //println!("FPS: {}", 1.0 / time_since_last_frame.as_secs_f32());
+                    last_frame_start = std::time::Instant::now();
+                }
+                _ => (),
             }
-            _ => (),
-        }
 
-        window.request_redraw();
-    });
+            window.request_redraw();
+        });
+    }
+
 }
 
-fn draw(image: &mut image::Image, pixels: &mut Pixels, model: &model::Model) {
+fn draw(image: &mut image::Image, pixels: &mut Pixels, model: &model::Model, is_screenshot: bool) {
+    image.reset_z_buffer();
     image.clear(image::Color::new(0, 0, 0, 255));
     image.draw_model(model, image::Color::new(255, 0, 255, 255));
-    let p0 = geometry::Vec2f::new(10.0, 70.0);
-    let p1 = geometry::Vec2f::new(50.0, 160.0);
-    let p2 = geometry::Vec2f::new(70.0, 80.0);
+    let p0 = geometry::Vec3f::new(10.0, 70.0, 0.0);
+    let p1 = geometry::Vec3f::new(50.0, 160.0, 0.0);
+    let p2 = geometry::Vec3f::new(70.0, 80.0, 0.0);
     let color = image::Color::new(255, 153, 255, 255);
     image.triangle2d(p0, p1, p2, color);
     image.flip_vertically();
-    image.write_to_buffer(pixels.frame_mut());
-    pixels.render().unwrap();
+    if is_screenshot {
+        image.save("screenshot.png");
+    } else {
+        image.write_to_buffer(pixels.frame_mut());
+        pixels.render().unwrap();
+    }
 }
