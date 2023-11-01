@@ -142,8 +142,8 @@ impl Image {
     }
 
     pub fn triangle2d(&mut self, p0: Vec3f, p1: Vec3f, p2: Vec3f, color: Color) {
-        let mut bbox_min = Vec2i::new(std::i32::MAX, std::i32::MAX);
-        let mut bbox_max = Vec2i::new(std::i32::MIN, std::i32::MIN);
+        let mut bbox_min = Vec2i::new(self.width as i32 - 1, self.height as i32 - 1);
+        let mut bbox_max = Vec2i::new(0, 0);
 
         for v in &[p0, p1, p2] {
             bbox_min.x = bbox_min.x.min(v.x as i32);
@@ -152,13 +152,22 @@ impl Image {
             bbox_max.y = bbox_max.y.max(v.y as i32);
         }
 
+        /*
+        self.line((bbox_min.x, bbox_min.y), (bbox_max.x, bbox_min.y), Color::new(255, 0, 0, 255));
+        self.line((bbox_min.x, bbox_max.y), (bbox_max.x, bbox_max.y), Color::new(255, 0, 0, 255));
+        self.line((bbox_min.x, bbox_min.y), (bbox_min.x, bbox_max.y), Color::new(255, 0, 0, 255));
+        self.line((bbox_max.x, bbox_min.y), (bbox_max.x, bbox_max.y), Color::new(255, 0, 0, 255));
+        */
         
-        for x in bbox_min.x..bbox_max.x {
-            for y in bbox_min.y..bbox_max.y {
+        for x in bbox_min.x..=bbox_max.x {
+            for y in bbox_min.y..=bbox_max.y {
+                if y == self.height as i32 || x == self.width as i32{
+                    continue;
+                }
                 let pos = Vec3f::new(x as f32, y as f32, 0.0);
                 let (is_inside, z_interpolated) = self.is_inside_triangle(p0, p1, p2, pos);
                 if is_inside {
-                    let index = (x + y * self.width as i32) as usize;
+                    let index = (x + (y * self.width as i32)) as usize;
                     if self.z_buffer[index] < z_interpolated {
                         self.z_buffer[index] = z_interpolated;
                         self.set_pixel(index, color).unwrap();
@@ -169,8 +178,8 @@ impl Image {
     }
 
     fn is_inside_triangle(&mut self, p0: Vec3f, p1: Vec3f, p2: Vec3f, p: Vec3f) -> (bool, f32) {
-        let w1 = (p0.x * (p2.y - p0.y) + (p.y - p0.y) * (p2.x - p0.x) - p.x * (p2.y - p0.y)) as f32 / ((p1.y - p0.y) * (p2.x - p0.x) - (p1.x - p0.x) * (p2.y - p0.y)) as f32;
-        let w2 = (p.y as f32 - p0.y as f32 - w1 * (p1.y - p0.y) as f32) as f32 / (p2.y - p0.y) as f32;
+        let w1 = (p0.x * (p2.y - p0.y) + (p.y - p0.y) * (p2.x - p0.x) - p.x * (p2.y - p0.y)) / ((p1.y - p0.y) * (p2.x - p0.x) - (p1.x - p0.x) * (p2.y - p0.y));
+        let w2 = (p.y - p0.y - w1 * (p1.y - p0.y))  / (p2.y - p0.y);
         let w3 = 1.0 - w1 - w2;
 
         let inside = w1 >= 0.0 && w2 >= 0.0 && w1 + w2 <= 1.0;
@@ -214,7 +223,6 @@ impl Image {
                                            color.a));
             }
         }
-        println!("");
     }
 
     pub fn flip_vertically(&mut self) {
