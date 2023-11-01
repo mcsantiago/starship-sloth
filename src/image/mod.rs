@@ -152,14 +152,15 @@ impl Image {
             bbox_max.y = bbox_max.y.max(v.y as i32);
         }
 
+        
         for x in bbox_min.x..bbox_max.x {
             for y in bbox_min.y..bbox_max.y {
-                let pos = Vec3f::new(x as f32, y as f32, p0.z + p1.z + p2.z);
-                let is_inside = self.is_inside_triangle(p0, p1, p2, pos);
+                let pos = Vec3f::new(x as f32, y as f32, 0.0);
+                let (is_inside, z_interpolated) = self.is_inside_triangle(p0, p1, p2, pos);
                 if is_inside {
                     let index = (x + y * self.width as i32) as usize;
-                    if self.z_buffer[index] < pos.z {
-                        self.z_buffer[index] = pos.z;
+                    if self.z_buffer[index] < z_interpolated {
+                        self.z_buffer[index] = z_interpolated;
                         self.set_pixel(index, color).unwrap();
                     }
                 }
@@ -167,11 +168,16 @@ impl Image {
         }
     }
 
-    fn is_inside_triangle(&mut self, p0: Vec3f, p1: Vec3f, p2: Vec3f, p: Vec3f) -> bool {
+    fn is_inside_triangle(&mut self, p0: Vec3f, p1: Vec3f, p2: Vec3f, p: Vec3f) -> (bool, f32) {
         let w1 = (p0.x * (p2.y - p0.y) + (p.y - p0.y) * (p2.x - p0.x) - p.x * (p2.y - p0.y)) as f32 / ((p1.y - p0.y) * (p2.x - p0.x) - (p1.x - p0.x) * (p2.y - p0.y)) as f32;
         let w2 = (p.y as f32 - p0.y as f32 - w1 * (p1.y - p0.y) as f32) as f32 / (p2.y - p0.y) as f32;
+        let w3 = 1.0 - w1 - w2;
 
-        w1 >= 0.0 && w2 >= 0.0 && w1 + w2 <= 1.0
+        let inside = w1 >= 0.0 && w2 >= 0.0 && w1 + w2 <= 1.0;
+
+        let z_interpolated = w1 * p0.z + w2 * p1.z + w3 * p2.z;
+
+        (inside, z_interpolated)
     }
 
     pub fn reset_z_buffer(&mut self) {
@@ -189,8 +195,8 @@ impl Image {
 
             for idx in face.iter() {
                 let v = model.verts.get(*idx as usize).unwrap();
-                let x = ((v.x + 1.0) * self.width as f32 / 2.0) as i32;
-                let y = ((v.y + 1.0) * self.height as f32 / 2.0) as i32;
+                let x = ((v.x + 1.0) * self.width as f32 / 2.0 + 0.5) as f32;
+                let y = ((v.y + 1.0) * self.height as f32 / 2.0 + 0.5) as f32;
                 let z = v.z;
                 screen_coords.push(Vec3f::new(x as f32, y as f32, z));
                 world_coords.push(Vec3f::new(v.x, v.y, v.z));
@@ -208,6 +214,7 @@ impl Image {
                                            color.a));
             }
         }
+        println!("");
     }
 
     pub fn flip_vertically(&mut self) {
