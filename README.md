@@ -4,7 +4,7 @@ This is a Rust port of the [sloth-rasterizer](https://github.com/mcsantiago/slot
 The `rs-sloth-rasterizer` is a project that emphasizes the basics of 3D rasterization from the ground up. 
 It implements fundamental techniques used in the graphics pipeline to convert 3D models into 2D representations on your screen, all the while managing depth and texture application accurately.
 
-![Rendered 3D model]("./screenshots/screenshot.png")
+![Rendered 3D model](./screenshots/screenshot.png)
 
 ## Features
 - 3D Model Rendering: Transforms 3D models into 2D viewport projections using a software-based rendering pipeline.
