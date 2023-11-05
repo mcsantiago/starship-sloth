@@ -4,7 +4,7 @@ use std::mem::size_of;
 
 use error::Error;
 
-use crate::{geometry::{Point, Vec3f, Vec2i, Vec2f}, model};
+use crate::{geometry::{Point, Vec3f, Vec2i, Vec2f}, model, texture};
 
 #[derive(Debug)]
 pub struct Image {
@@ -195,31 +195,42 @@ impl Image {
         }
     }
 
-    pub fn draw_model(&mut self, model: &model::Model, color: Color) {
+    pub fn draw_model(&mut self, model: &model::Model, texture: &texture::Texture, _: Color) {
         let light_dir = Vec3f::new(0.0, 0.0, -1.0); // This should come from scene
 
         for (_, face) in model.faces.iter().enumerate() {
             let mut screen_coords: Vec<Vec3f> = Vec::new(); // This should come from Camera
             let mut world_coords: Vec<Vec3f> = Vec::new();  // This should come from Scene
+            let mut texture_coords: Vec<Vec2f> = Vec::new(); // This should come from Model
 
-            for idx in face.iter() {
-                let v = model.verts.get(*idx as usize).unwrap();
+            for (v_idx, vt_idx, vn_idx) in face.iter() {
+                let v = model.verts.get(*v_idx as usize).unwrap();
+                let vt = model.tex_coords.get(*vt_idx as usize).unwrap();
+                let vn = model.normals.get(*vn_idx as usize).unwrap();
+
                 let x = ((v.x + 1.0) * self.width as f32 / 2.0 + 0.5) as f32;
                 let y = ((v.y + 1.0) * self.height as f32 / 2.0 + 0.5) as f32;
                 let z = v.z;
+
+                let tex_x = vt.x * texture.width as f32;
+                let tex_y = vt.y * texture.height as f32;
+
                 screen_coords.push(Vec3f::new(x as f32, y as f32, z));
+                texture_coords.push(Vec2f::new(tex_x, tex_y));
                 world_coords.push(Vec3f::new(v.x, v.y, v.z));
             }
 
             let n = (world_coords[2] - world_coords[0]).cross(world_coords[1] - world_coords[0]).normalize();
             let intensity = n.dot(&light_dir);
+            let color = texture.get_pixel(texture_coords[0].x as usize, texture_coords[0].y as usize);
+            println!("{:?}", color);
             if intensity > 0.0 {
                 self.triangle2d(screen_coords[0],
                                 screen_coords[1],
                                 screen_coords[2],
-                                Color::new((intensity * color.r as f32) as u8,
-                                           (intensity * color.g as f32) as u8,
-                                           (intensity * color.b as f32) as u8,
+                                Color::new((color.r as f32 * intensity) as u8,
+                                           (color.g as f32 * intensity) as u8,
+                                           (color.b as f32 * intensity) as u8,
                                            color.a));
             }
         }

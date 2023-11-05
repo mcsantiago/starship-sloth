@@ -1,6 +1,7 @@
 mod image;
 mod model;
 mod geometry;
+mod texture;
 
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
@@ -18,8 +19,9 @@ fn main() {
 
     let screenshot = std::env::args().any(|arg| arg == "--screenshot");
 
-
     let model = model::Model::new("objs/african_head.obj");
+    let mut texture_manager = texture::TextureManager::new();
+    let texture_id = texture_manager.load_texture("objs/african_head_diffuse.tga");
 
     let event_loop = EventLoop::new();
     let window = {
@@ -45,7 +47,7 @@ fn main() {
 
     if screenshot {
         println!("Taking screenshot...");
-        draw(&mut image, &mut pixels, &model, screenshot);
+        draw(&mut image, &mut pixels, &model, &texture_manager, texture_id, screenshot);
 
     } else {
         let start_time = std::time::Instant::now();
@@ -53,7 +55,7 @@ fn main() {
         let mut last_frame_start = start_time;
 
         event_loop.run(move |event, _, control_flow| {
-            *control_flow = ControlFlow::Wait;
+            *control_flow = ControlFlow::Poll;
 
 
             match event {
@@ -63,9 +65,9 @@ fn main() {
                 } => *control_flow = ControlFlow::Exit,
                 Event::RedrawRequested(_) => {
                     let delta = start_time.elapsed();
-                    draw(&mut image, &mut pixels, &model, screenshot);
+                    draw(&mut image, &mut pixels, &model, &texture_manager, texture_id, screenshot);
                     let time_since_last_frame = last_frame_start.elapsed();
-                    //println!("FPS: {}", 1.0 / time_since_last_frame.as_secs_f32());
+                    println!("FPS: {}", 1.0 / time_since_last_frame.as_secs_f32());
                     last_frame_start = std::time::Instant::now();
                 }
                 _ => (),
@@ -77,15 +79,11 @@ fn main() {
 
 }
 
-fn draw(image: &mut image::Image, pixels: &mut Pixels, model: &model::Model, is_screenshot: bool) {
+fn draw(image: &mut image::Image, pixels: &mut Pixels, model: &model::Model, texture_manager: &texture::TextureManager, texture_id: u8, is_screenshot: bool) {
+    let texture = texture_manager.get_texture(texture_id);
     image.reset_z_buffer();
     image.clear(image::Color::new(0, 0, 0, 255));
-    image.draw_model(model, image::Color::new(255, 0, 255, 255));
-    let p0 = geometry::Vec3f::new(10.0, 70.0, 0.0);
-    let p1 = geometry::Vec3f::new(50.0, 160.0, 0.0);
-    let p2 = geometry::Vec3f::new(70.0, 80.0, 0.0);
-    let color = image::Color::new(255, 153, 255, 255);
-    image.triangle2d(p0, p1, p2, color);
+    image.draw_model(model, texture, image::Color::new(255, 0, 255, 255));
     image.flip_vertically();
     if is_screenshot {
         image.save("screenshot.png");
