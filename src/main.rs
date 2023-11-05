@@ -1,4 +1,4 @@
-mod image;
+mod renderer;
 mod model;
 mod geometry;
 mod texture;
@@ -42,12 +42,11 @@ fn main() {
         Pixels::new(WIDTH as u32, HEIGHT as u32, surface_texture).unwrap()
     };
 
-    let mut image = image::Image::new(WIDTH, HEIGHT);
-
+    let mut renderer = renderer::Renderer::new(WIDTH, HEIGHT);
 
     if screenshot {
         println!("Taking screenshot...");
-        draw(&mut image, &mut pixels, &model, &texture_manager, texture_id, screenshot);
+        draw(&mut renderer, &mut pixels, &model, &texture_manager, texture_id, screenshot);
 
     } else {
         let start_time = std::time::Instant::now();
@@ -65,7 +64,7 @@ fn main() {
                 } => *control_flow = ControlFlow::Exit,
                 Event::RedrawRequested(_) => {
                     let delta = start_time.elapsed();
-                    draw(&mut image, &mut pixels, &model, &texture_manager, texture_id, screenshot);
+                    draw(&mut renderer, &mut pixels, &model, &texture_manager, texture_id, screenshot);
                     let time_since_last_frame = last_frame_start.elapsed();
                     println!("FPS: {}", 1.0 / time_since_last_frame.as_secs_f32());
                     last_frame_start = std::time::Instant::now();
@@ -79,11 +78,11 @@ fn main() {
 
 }
 
-fn draw(image: &mut image::Image, pixels: &mut Pixels, model: &model::Model, texture_manager: &texture::TextureManager, texture_id: u8, is_screenshot: bool) {
+fn draw(image: &mut renderer::Renderer, pixels: &mut Pixels, model: &model::Model, texture_manager: &texture::TextureManager, texture_id: u8, is_screenshot: bool) {
     let texture = texture_manager.get_texture(texture_id);
     image.reset_z_buffer();
-    image.clear(image::Color::new(0, 0, 0, 255));
-    image.draw_model(model, texture, image::Color::new(255, 0, 255, 255));
+    image.clear(renderer::Color::new(0, 0, 0, 255));
+    image.draw_model(model, texture, renderer::Color::new(255, 0, 255, 255));
     image.flip_vertically();
     if is_screenshot {
         image.save("screenshot.png");

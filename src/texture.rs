@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use crate::image::Color;
+use crate::renderer::Color;
+use crate::geometry;
 
 pub struct Texture {
     pub width: usize,
@@ -9,16 +10,25 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn get_pixel(&self, x: usize, y: usize) -> Color {
-        let index = (y * self.width + x) * 4;
+    pub fn sample(&self, uv: geometry::Vec2f) -> Color {
+        // Clamp the values of u and v to ensure they're within the texture bounds
+        let x = (uv.x.clamp(0.0, 1.0) * self.width as f32) as usize;
+        let y = (uv.y.clamp(0.0, 1.0) * self.height as f32) as usize;
+
+        // Ensure the index does not go beyond the texture's pixel array
+        let clamped_x = x.min(self.width - 1);
+        let clamped_y = y.min(self.height - 1);
+
+        let index = (clamped_y * self.width + clamped_x) * 4;
+
+        // Assuming the pixel buffer is laid out as RGBA
         Color::new(
-            self.pixels[index],
-            self.pixels[index + 1],
-            self.pixels[index + 2],
-            self.pixels[index + 3],
+            self.pixels[index],     // Red
+            self.pixels[index + 1], // Green
+            self.pixels[index + 2], // Blue
+            self.pixels[index + 3], // Alpha
         )
-    }
-}
+    }}
 
 pub struct TextureManager {
     textures: HashMap<u8, Texture>,

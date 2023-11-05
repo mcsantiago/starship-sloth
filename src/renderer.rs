@@ -1,17 +1,19 @@
-mod error;
-
 use std::mem::size_of;
 
-use error::Error;
+use crate::{geometry::{Vec3f, Vec2i, Vec2f}, model, texture};
 
-use crate::{geometry::{Point, Vec3f, Vec2i, Vec2f}, model, texture};
 
 #[derive(Debug)]
-pub struct Image {
+pub struct Renderer {
     width: usize,
     height: usize,
     pixels: Vec<u8>,
     z_buffer: Vec<f32>,
+}
+
+#[derive(Debug)]
+pub enum Error {
+    OutOfBounds,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -26,9 +28,17 @@ impl Color {
     pub fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self { r, g, b, a }
     }
+
+    pub fn scale_by_intensity(&self, intensity: f32) -> Self {
+        let r = (self.r as f32 * intensity) as u8;
+        let g = (self.g as f32 * intensity) as u8;
+        let b = (self.b as f32 * intensity) as u8;
+        let a = (self.a as f32 * intensity) as u8;
+        Self { r, g, b, a }
+    }
 }
 
-impl Image {
+impl Renderer {
     pub fn new(width: usize, height: usize) -> Self {
         Self {
             width,
@@ -78,6 +88,7 @@ impl Image {
     // Assumes that (0, 0) is at the center of the screen
     // and that the coordinates are discrete values for pixels
     ////////////////////////////////////////////////////////////////
+    #[allow(dead_code)]
     pub fn line(&mut self, start: (i32, i32), end: (i32, i32), color: Color) {
         let mut x0 = start.0;
         let mut y0 = start.1;
@@ -141,7 +152,7 @@ impl Image {
         }
     }
 
-    pub fn triangle2d(&mut self, p0: Vec3f, p1: Vec3f, p2: Vec3f, color: Color) {
+    pub fn triangle2d(&mut self, p0: Vec3f, p1: Vec3f, p2: Vec3f, uv0: Vec2f, uv1: Vec2f, uv2: Vec2f, texture: &texture::Texture, intensity: f32) {
         let mut bbox_min = Vec2i::new(self.width as i32 - 1, self.height as i32 - 1);
         let mut bbox_max = Vec2i::new(0, 0);
 
@@ -165,11 +176,18 @@ impl Image {
                     continue;
                 }
                 let pos = Vec3f::new(x as f32, y as f32, 0.0);
-                let (is_inside, z_interpolated) = self.is_inside_triangle(p0, p1, p2, pos);
+                let (w1, w2, w3) = self.barycentric(p0, p1, p2, pos);
+
+                let is_inside = w1 >= 0.0 && w2 >= 0.0 && w3 >= 0.0;
+
                 if is_inside {
+                    let z_interpolated = w1 * p0.z + w2 * p1.z + w3 * p2.z;
                     let index = (x + (y * self.width as i32)) as usize;
                     if self.z_buffer[index] < z_interpolated {
                         self.z_buffer[index] = z_interpolated;
+                        let uv_interpolated = self.interpolate_uv(uv0, uv1, uv2, w1, w2, w3);
+                        let mut color = texture.sample(uv_interpolated);
+                        color = color.scale_by_intensity(intensity);
                         self.set_pixel(index, color).unwrap();
                     }
                 }
@@ -177,16 +195,17 @@ impl Image {
         }
     }
 
-    fn is_inside_triangle(&mut self, p0: Vec3f, p1: Vec3f, p2: Vec3f, p: Vec3f) -> (bool, f32) {
+    fn interpolate_uv(&self, uv0: Vec2f, uv1: Vec2f, uv2: Vec2f, w1: f32, w2: f32, w3: f32) -> Vec2f {
+        let u = w1 * uv0.x + w2 * uv1.x + w3 * uv2.x;
+        let v = w1 * uv0.y + w2 * uv1.y + w3 * uv2.y;
+        Vec2f::new(u, v)
+    }
+
+    fn barycentric(&mut self, p0: Vec3f, p1: Vec3f, p2: Vec3f, p: Vec3f) -> (f32, f32, f32) {
         let w1 = (p0.x * (p2.y - p0.y) + (p.y - p0.y) * (p2.x - p0.x) - p.x * (p2.y - p0.y)) / ((p1.y - p0.y) * (p2.x - p0.x) - (p1.x - p0.x) * (p2.y - p0.y));
         let w2 = (p.y - p0.y - w1 * (p1.y - p0.y))  / (p2.y - p0.y);
         let w3 = 1.0 - w1 - w2;
-
-        let inside = w1 >= 0.0 && w2 >= 0.0 && w1 + w2 <= 1.0;
-
-        let z_interpolated = w1 * p0.z + w2 * p1.z + w3 * p2.z;
-
-        (inside, z_interpolated)
+        (w1, w2, w3)
     }
 
     pub fn reset_z_buffer(&mut self) {
@@ -206,32 +225,31 @@ impl Image {
             for (v_idx, vt_idx, vn_idx) in face.iter() {
                 let v = model.verts.get(*v_idx as usize).unwrap();
                 let vt = model.tex_coords.get(*vt_idx as usize).unwrap();
-                let vn = model.normals.get(*vn_idx as usize).unwrap();
+                let _vn = model.normals.get(*vn_idx as usize).unwrap();
 
                 let x = ((v.x + 1.0) * self.width as f32 / 2.0 + 0.5) as f32;
                 let y = ((v.y + 1.0) * self.height as f32 / 2.0 + 0.5) as f32;
                 let z = v.z;
 
-                let tex_x = vt.x * texture.width as f32;
-                let tex_y = vt.y * texture.height as f32;
-
                 screen_coords.push(Vec3f::new(x as f32, y as f32, z));
-                texture_coords.push(Vec2f::new(tex_x, tex_y));
+                texture_coords.push(Vec2f::new(vt.x, (1.0 - vt.y).abs()));
                 world_coords.push(Vec3f::new(v.x, v.y, v.z));
             }
 
             let n = (world_coords[2] - world_coords[0]).cross(world_coords[1] - world_coords[0]).normalize();
             let intensity = n.dot(&light_dir);
-            let color = texture.get_pixel(texture_coords[0].x as usize, texture_coords[0].y as usize);
-            println!("{:?}", color);
+
             if intensity > 0.0 {
                 self.triangle2d(screen_coords[0],
                                 screen_coords[1],
                                 screen_coords[2],
-                                Color::new((color.r as f32 * intensity) as u8,
-                                           (color.g as f32 * intensity) as u8,
-                                           (color.b as f32 * intensity) as u8,
-                                           color.a));
+                                // Idk why the texture coords are in this order
+                                texture_coords[1],
+                                texture_coords[2],
+                                texture_coords[0],
+                                &texture,
+                                intensity);
+
             }
         }
     }
