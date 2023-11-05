@@ -21,7 +21,7 @@ To build and run the project, you need to have the following installed:
 - Rust 1.70.0 or higher
 
 ## Getting Started
-1. Clone this repository to your local machien or download the source code.
+1. Clone this repository to your local machine or download the source code.
 2. Ensure that the required prerequisites are installed.
 3. Open a terminal or command prompt and navigate to the project directory.
 4. Run the following command to build the project:
