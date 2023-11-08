@@ -1,7 +1,7 @@
 use std::mem::size_of;
 
-use crate::{model, texture};
-use glam::{IVec2, Vec2, Vec3};
+use crate::{model, texture, node};
+use glam::{IVec2, Vec2, Vec3, Mat4};
 
 
 #[derive(Debug)]
@@ -253,6 +253,24 @@ impl Renderer {
 
             }
         }
+    }
+
+    pub fn render_scene(&mut self, node: &node::Node, model_manager: &model::ModelManager, texture_manager: &texture::TextureManager) {
+        let root_transform = Mat4::IDENTITY;
+        println!("Node: {:?}", node);
+        
+        node.traverse(root_transform, &mut |node, world_transform| {
+            match &node.node_type {
+                node::NodeType::Mesh(mesh) => {
+                    let model = model_manager.get_model(mesh.model_id);
+                    println!("Model: {:?}", model);
+                    let texture = texture_manager.get_texture(mesh.texture_id);
+                    self.draw_model(model, texture, Color::new(255, 255, 255, 255));
+                },
+                node::NodeType::Light(_) => {},
+                _ => {}
+            }
+        });
     }
 
     pub fn flip_vertically(&mut self) {

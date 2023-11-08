@@ -1,12 +1,45 @@
+use std::collections::HashMap;
+
 use log::info;
 
 use glam::Vec3;
 
+#[derive(Debug)]
 pub struct Model {
     pub verts: Vec<Vec3>,
     pub tex_coords: Vec<Vec3>,
     pub normals: Vec<Vec3>,
     pub faces: Vec<Vec<(i32,i32,i32)>>,
+}
+
+#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
+pub struct ModelId(usize);
+
+pub struct ModelManager {
+    pub models: HashMap<ModelId, Model>,
+}
+
+impl ModelManager {
+    pub fn new() -> Self {
+        Self {
+            models: HashMap::new(),
+        }
+    }
+
+    pub fn load_model(&mut self, model_filename: &str) -> ModelId {
+        let model = Model::new(model_filename);
+        self.add_model(model)
+    }
+
+    pub fn add_model(&mut self, model: Model) -> ModelId {
+        let id = ModelId(self.models.len());
+        self.models.insert(id, model);
+        id
+    }
+
+    pub fn get_model(&self, id: ModelId) -> &Model {
+        self.models.get(&id).unwrap()
+    }
 }
 
 impl Model {

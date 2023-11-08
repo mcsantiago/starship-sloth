@@ -28,10 +28,14 @@ impl Texture {
             self.pixels[index + 2], // Blue
             self.pixels[index + 3], // Alpha
         )
-    }}
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TextureId(usize);
 
 pub struct TextureManager {
-    textures: HashMap<u8, Texture>,
+    textures: HashMap<TextureId, Texture>,
 }
 
 impl TextureManager {
@@ -41,7 +45,7 @@ impl TextureManager {
         }
     }
 
-    pub fn load_texture(&mut self, filename: &str) -> u8 {
+    pub fn load_texture(&mut self, filename: &str) -> TextureId {
         // Validate filename is tga
         if !filename.ends_with(".tga") {
             panic!("Invalid file type. Must be .tga");
@@ -55,13 +59,13 @@ impl TextureManager {
             pixels: image.into_raw(),
         };
 
-        let texture_id: u8 = 0;
+        let texture_id = TextureId(self.textures.len());
         self.textures.insert(texture_id, texture);
 
         texture_id
     }
 
-    pub fn get_texture(&self, texture_id: u8) -> &Texture {
+    pub fn get_texture(&self, texture_id: TextureId) -> &Texture {
         self.textures.get(&texture_id).unwrap()
     }
 }

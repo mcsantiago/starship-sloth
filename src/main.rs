@@ -2,8 +2,11 @@ mod renderer;
 mod model;
 mod texture;
 mod camera;
-mod scene;
+mod node;
 
+use std::sync::Arc;
+
+use node::ModelData;
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
     event::{Event, WindowEvent},
@@ -20,9 +23,22 @@ fn main() {
 
     let screenshot = std::env::args().any(|arg| arg == "--screenshot");
 
-    let model = model::Model::new("objs/african_head.obj");
+    let mut model_manager = model::ModelManager::new();
     let mut texture_manager = texture::TextureManager::new();
+
+    let model_id = model_manager.load_model("objs/african_head.obj");
     let texture_id = texture_manager.load_texture("objs/african_head_diffuse.tga");
+
+    let model_data = Arc::new(ModelData {
+        model_id,
+        texture_id,
+    });
+
+    println!("model_data: {:?}", model_data);
+
+    let mut scene_root = node::Node::new(glam::Mat4::IDENTITY, node::NodeType::Group);
+    scene_root.add_child(node::Node::new(glam::Mat4::IDENTITY, node::NodeType::Mesh(Arc::clone(&model_data))));
+    //scene_root.add_child(node::Node::new(glam::Mat4::from_translation(glam::Vec3::new(0.0, 0.0, -5.0)), node::NodeType::Mesh(Arc::clone(&model_data))));
 
     let event_loop = EventLoop::new();
     let window = {
@@ -47,7 +63,7 @@ fn main() {
 
     if screenshot {
         println!("Taking screenshot...");
-        draw(&mut renderer, &mut pixels, &model, &texture_manager, texture_id, screenshot);
+        draw(&mut renderer, &mut pixels, &model_manager, &texture_manager, &scene_root, screenshot);
 
     } else {
         let start_time = std::time::Instant::now();
@@ -65,9 +81,9 @@ fn main() {
                 } => *control_flow = ControlFlow::Exit,
                 Event::RedrawRequested(_) => {
                     let delta = start_time.elapsed();
-                    draw(&mut renderer, &mut pixels, &model, &texture_manager, texture_id, screenshot);
+                    draw(&mut renderer, &mut pixels, &model_manager, &texture_manager, &scene_root, screenshot);
                     let time_since_last_frame = last_frame_start.elapsed();
-                    println!("FPS: {}", 1.0 / time_since_last_frame.as_secs_f32());
+                    //println!("FPS: {}", 1.0 / time_since_last_frame.as_secs_f32());
                     last_frame_start = std::time::Instant::now();
                 }
                 _ => (),
@@ -79,11 +95,10 @@ fn main() {
 
 }
 
-fn draw(image: &mut renderer::Renderer, pixels: &mut Pixels, model: &model::Model, texture_manager: &texture::TextureManager, texture_id: u8, is_screenshot: bool) {
-    let texture = texture_manager.get_texture(texture_id);
+fn draw(image: &mut renderer::Renderer, pixels: &mut Pixels, model_manager: &model::ModelManager, texture_manager: &texture::TextureManager, node: &node::Node, is_screenshot: bool) {
     image.reset_z_buffer();
     image.clear(renderer::Color::new(0, 0, 0, 255));
-    image.draw_model(model, texture, renderer::Color::new(255, 0, 255, 255));
+    image.render_scene(node, model_manager, texture_manager);
     image.flip_vertically();
     if is_screenshot {
         image.save("screenshot.png");
