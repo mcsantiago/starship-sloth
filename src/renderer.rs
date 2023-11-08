@@ -1,7 +1,7 @@
 use std::mem::size_of;
 
-use crate::{model, texture, node};
-use glam::{IVec2, Vec2, Vec3, Mat4};
+use crate::{model, texture, node, camera};
+use glam::{IVec2, Vec2, Vec3, Vec4, Mat4};
 
 
 #[derive(Debug)]
@@ -164,6 +164,13 @@ impl Renderer {
             bbox_max.y = bbox_max.y.max(v.y as i32);
         }
 
+        // Clipping
+        bbox_min.x = bbox_min.x.max(0);
+        bbox_min.y = bbox_min.y.max(0);
+        bbox_max.x = bbox_max.x.min(self.width as i32 - 1);
+        bbox_max.y = bbox_max.y.min(self.height as i32 - 1);
+
+
         /*
         self.line((bbox_min.x, bbox_min.y), (bbox_max.x, bbox_min.y), Color::new(255, 0, 0, 255));
         self.line((bbox_min.x, bbox_max.y), (bbox_max.x, bbox_max.y), Color::new(255, 0, 0, 255));
@@ -215,7 +222,7 @@ impl Renderer {
         }
     }
 
-    pub fn draw_model(&mut self, model: &model::Model, texture: &texture::Texture, _: Color) {
+    pub fn draw_model(&mut self, model: &model::Model, texture: &texture::Texture, model_matrix: Mat4, view_matrix: Mat4, projection_matrix: Mat4, _: Color) {
         let light_dir = Vec3::new(0.0, 0.0, -1.0); // This should come from scene
 
         for (_, face) in model.faces.iter().enumerate() {
@@ -228,11 +235,7 @@ impl Renderer {
                 let vt = model.tex_coords.get(*vt_idx as usize).unwrap();
                 let _vn = model.normals.get(*vn_idx as usize).unwrap();
 
-                let x = ((v.x + 1.0) * self.width as f32 / 2.0 + 0.5) as f32;
-                let y = ((v.y + 1.0) * self.height as f32 / 2.0 + 0.5) as f32;
-                let z = v.z;
-
-                screen_coords.push(Vec3::new(x as f32, y as f32, z));
+                screen_coords.push(self.transform_vertex(v.clone(), model_matrix, view_matrix, projection_matrix));
                 texture_coords.push(Vec2::new(vt.x, (1.0 - vt.y).abs()));
                 world_coords.push(Vec3::new(v.x, v.y, v.z));
             }
@@ -255,17 +258,46 @@ impl Renderer {
         }
     }
 
-    pub fn render_scene(&mut self, node: &node::Node, model_manager: &model::ModelManager, texture_manager: &texture::TextureManager) {
+    fn transform_vertex(&self, vertex: Vec3, model_matrix: Mat4, view_matrix: Mat4, projection_matrix: Mat4) -> Vec3 {
+        // Model matrix
+        let homogeneous_vertex = Vec4::new(vertex.x, vertex.y, vertex.z, 1.0);
+        let world_vertex = model_matrix * homogeneous_vertex;
+        let view_vertex = view_matrix * world_vertex;
+        let clip_space_vertex = projection_matrix * view_vertex;
+        let normalized_vertex = clip_space_vertex / clip_space_vertex.w;
+
+        let screen_vertex = Vec3::new(
+            (normalized_vertex.x + 1.0) * self.width as f32 / 2.0 + 0.5,
+            (normalized_vertex.y + 1.0) * self.height as f32 / 2.0 + 0.5,
+            normalized_vertex.z
+        );
+
+        screen_vertex
+    }
+
+    pub fn render_scene(&mut self,
+                        node: &node::Node,
+                        model_manager: &model::ModelManager,
+                        texture_manager: &texture::TextureManager,
+                        camera_manager: &camera::CameraManager) {
         let root_transform = Mat4::IDENTITY;
         println!("Node: {:?}", node);
+        let camera = camera_manager.get_active_camera();
         
         node.traverse(root_transform, &mut |node, world_transform| {
             match &node.node_type {
                 node::NodeType::Mesh(mesh) => {
-                    let model = model_manager.get_model(mesh.model_id);
-                    println!("Model: {:?}", model);
-                    let texture = texture_manager.get_texture(mesh.texture_id);
-                    self.draw_model(model, texture, Color::new(255, 255, 255, 255));
+                    match camera {
+                        Some(camera) => {
+                            let model_matrix = world_transform;
+                            let view_matrix = camera.get_view_matrix();
+                            let projection_matrix = camera.get_projection_matrix();
+                            let model = model_manager.get_model(mesh.model_id);
+                            let texture = texture_manager.get_texture(mesh.texture_id);
+                            self.draw_model(model, texture, model_matrix, view_matrix, projection_matrix, Color::new(255, 255, 255, 255));
+                        },
+                        None => {}
+                    }
                 },
                 node::NodeType::Light(_) => {},
                 _ => {}

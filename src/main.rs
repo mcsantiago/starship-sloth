@@ -6,6 +6,7 @@ mod node;
 
 use std::sync::Arc;
 
+use glam::Vec3;
 use node::ModelData;
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
@@ -25,9 +26,19 @@ fn main() {
 
     let mut model_manager = model::ModelManager::new();
     let mut texture_manager = texture::TextureManager::new();
+    let mut camera_manager = camera::CameraManager::new();
 
     let model_id = model_manager.load_model("objs/african_head.obj");
     let texture_id = texture_manager.load_texture("objs/african_head_diffuse.tga");
+    let camera_id = camera_manager.add_camera(
+        camera::Camera::new(Vec3::new(0.0, 0.0, 8.0),
+                            Vec3::new(0.0, 0.0, -5.0),
+                            Vec3::new(0.0, 1.0, 0.0),
+                            45.0,
+                            WIDTH as f32 / HEIGHT as f32,
+                            0.1,
+                            100.0,));
+    camera_manager.set_active_camera(camera_id);
 
     let model_data = Arc::new(ModelData {
         model_id,
@@ -38,7 +49,8 @@ fn main() {
 
     let mut scene_root = node::Node::new(glam::Mat4::IDENTITY, node::NodeType::Group);
     scene_root.add_child(node::Node::new(glam::Mat4::IDENTITY, node::NodeType::Mesh(Arc::clone(&model_data))));
-    //scene_root.add_child(node::Node::new(glam::Mat4::from_translation(glam::Vec3::new(0.0, 0.0, -5.0)), node::NodeType::Mesh(Arc::clone(&model_data))));
+    scene_root.add_child(node::Node::new(glam::Mat4::from_translation(glam::Vec3::new(-3.0, 0.0, -2.0)), node::NodeType::Mesh(Arc::clone(&model_data))));
+    scene_root.add_child(node::Node::new(glam::Mat4::from_translation(glam::Vec3::new(-5.0, 2.0, -5.0)), node::NodeType::Mesh(Arc::clone(&model_data))));
 
     let event_loop = EventLoop::new();
     let window = {
@@ -63,7 +75,7 @@ fn main() {
 
     if screenshot {
         println!("Taking screenshot...");
-        draw(&mut renderer, &mut pixels, &model_manager, &texture_manager, &scene_root, screenshot);
+        draw(&mut renderer, &mut pixels, &model_manager, &texture_manager, &camera_manager, &scene_root, screenshot);
 
     } else {
         let start_time = std::time::Instant::now();
@@ -81,7 +93,7 @@ fn main() {
                 } => *control_flow = ControlFlow::Exit,
                 Event::RedrawRequested(_) => {
                     let delta = start_time.elapsed();
-                    draw(&mut renderer, &mut pixels, &model_manager, &texture_manager, &scene_root, screenshot);
+                    draw(&mut renderer, &mut pixels, &model_manager, &texture_manager, &camera_manager, &scene_root, screenshot);
                     let time_since_last_frame = last_frame_start.elapsed();
                     //println!("FPS: {}", 1.0 / time_since_last_frame.as_secs_f32());
                     last_frame_start = std::time::Instant::now();
@@ -95,10 +107,16 @@ fn main() {
 
 }
 
-fn draw(image: &mut renderer::Renderer, pixels: &mut Pixels, model_manager: &model::ModelManager, texture_manager: &texture::TextureManager, node: &node::Node, is_screenshot: bool) {
+fn draw(image: &mut renderer::Renderer,
+        pixels: &mut Pixels,
+        model_manager: &model::ModelManager,
+        texture_manager: &texture::TextureManager,
+        camera_manager: &camera::CameraManager,
+        node: &node::Node,
+        is_screenshot: bool) {
     image.reset_z_buffer();
     image.clear(renderer::Color::new(0, 0, 0, 255));
-    image.render_scene(node, model_manager, texture_manager);
+    image.render_scene(node, model_manager, texture_manager, camera_manager);
     image.flip_vertically();
     if is_screenshot {
         image.save("screenshot.png");
