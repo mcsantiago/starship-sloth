@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::renderer::Color;
-use crate::geometry;
+use glam::Vec2;
 
 pub struct Texture {
     pub width: usize,
@@ -10,7 +10,7 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn sample(&self, uv: geometry::Vec2f) -> Color {
+    pub fn sample(&self, uv: Vec2) -> Color {
         // Clamp the values of u and v to ensure they're within the texture bounds
         let x = (uv.x.clamp(0.0, 1.0) * self.width as f32) as usize;
         let y = (uv.y.clamp(0.0, 1.0) * self.height as f32) as usize;

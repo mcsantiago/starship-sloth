@@ -1,6 +1,7 @@
 use std::mem::size_of;
 
-use crate::{geometry::{Vec3f, Vec2i, Vec2f}, model, texture};
+use crate::{model, texture};
+use glam::{IVec2, Vec2, Vec3};
 
 
 #[derive(Debug)]
@@ -152,9 +153,9 @@ impl Renderer {
         }
     }
 
-    pub fn triangle2d(&mut self, p0: Vec3f, p1: Vec3f, p2: Vec3f, uv0: Vec2f, uv1: Vec2f, uv2: Vec2f, texture: &texture::Texture, intensity: f32) {
-        let mut bbox_min = Vec2i::new(self.width as i32 - 1, self.height as i32 - 1);
-        let mut bbox_max = Vec2i::new(0, 0);
+    pub fn triangle2d(&mut self, p0: Vec3, p1: Vec3, p2: Vec3, uv0: Vec2, uv1: Vec2, uv2: Vec2, texture: &texture::Texture, intensity: f32) {
+        let mut bbox_min = IVec2::new(self.width as i32 - 1, self.height as i32 - 1);
+        let mut bbox_max = IVec2::new(0, 0);
 
         for v in &[p0, p1, p2] {
             bbox_min.x = bbox_min.x.min(v.x as i32);
@@ -175,7 +176,7 @@ impl Renderer {
                 if y == self.height as i32 || x == self.width as i32{
                     continue;
                 }
-                let pos = Vec3f::new(x as f32, y as f32, 0.0);
+                let pos = Vec3::new(x as f32, y as f32, 0.0);
                 let (w1, w2, w3) = self.barycentric(p0, p1, p2, pos);
 
                 let is_inside = w1 >= 0.0 && w2 >= 0.0 && w3 >= 0.0;
@@ -195,13 +196,13 @@ impl Renderer {
         }
     }
 
-    fn interpolate_uv(&self, uv0: Vec2f, uv1: Vec2f, uv2: Vec2f, w1: f32, w2: f32, w3: f32) -> Vec2f {
+    fn interpolate_uv(&self, uv0: Vec2, uv1: Vec2, uv2: Vec2, w1: f32, w2: f32, w3: f32) -> Vec2 {
         let u = w1 * uv0.x + w2 * uv1.x + w3 * uv2.x;
         let v = w1 * uv0.y + w2 * uv1.y + w3 * uv2.y;
-        Vec2f::new(u, v)
+        Vec2::new(u, v)
     }
 
-    fn barycentric(&mut self, p0: Vec3f, p1: Vec3f, p2: Vec3f, p: Vec3f) -> (f32, f32, f32) {
+    fn barycentric(&mut self, p0: Vec3, p1: Vec3, p2: Vec3, p: Vec3) -> (f32, f32, f32) {
         let w1 = (p0.x * (p2.y - p0.y) + (p.y - p0.y) * (p2.x - p0.x) - p.x * (p2.y - p0.y)) / ((p1.y - p0.y) * (p2.x - p0.x) - (p1.x - p0.x) * (p2.y - p0.y));
         let w2 = (p.y - p0.y - w1 * (p1.y - p0.y))  / (p2.y - p0.y);
         let w3 = 1.0 - w1 - w2;
@@ -215,12 +216,12 @@ impl Renderer {
     }
 
     pub fn draw_model(&mut self, model: &model::Model, texture: &texture::Texture, _: Color) {
-        let light_dir = Vec3f::new(0.0, 0.0, -1.0); // This should come from scene
+        let light_dir = Vec3::new(0.0, 0.0, -1.0); // This should come from scene
 
         for (_, face) in model.faces.iter().enumerate() {
-            let mut screen_coords: Vec<Vec3f> = Vec::new(); // This should come from Camera
-            let mut world_coords: Vec<Vec3f> = Vec::new();  // This should come from Scene
-            let mut texture_coords: Vec<Vec2f> = Vec::new(); // This should come from Model
+            let mut screen_coords: Vec<Vec3> = Vec::new(); // This should come from Camera
+            let mut world_coords: Vec<Vec3> = Vec::new();  // This should come from Scene
+            let mut texture_coords: Vec<Vec2> = Vec::new(); // This should come from Model
 
             for (v_idx, vt_idx, vn_idx) in face.iter() {
                 let v = model.verts.get(*v_idx as usize).unwrap();
@@ -231,13 +232,13 @@ impl Renderer {
                 let y = ((v.y + 1.0) * self.height as f32 / 2.0 + 0.5) as f32;
                 let z = v.z;
 
-                screen_coords.push(Vec3f::new(x as f32, y as f32, z));
-                texture_coords.push(Vec2f::new(vt.x, (1.0 - vt.y).abs()));
-                world_coords.push(Vec3f::new(v.x, v.y, v.z));
+                screen_coords.push(Vec3::new(x as f32, y as f32, z));
+                texture_coords.push(Vec2::new(vt.x, (1.0 - vt.y).abs()));
+                world_coords.push(Vec3::new(v.x, v.y, v.z));
             }
 
             let n = (world_coords[2] - world_coords[0]).cross(world_coords[1] - world_coords[0]).normalize();
-            let intensity = n.dot(&light_dir);
+            let intensity = n.dot(light_dir);
 
             if intensity > 0.0 {
                 self.triangle2d(screen_coords[0],

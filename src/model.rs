@@ -1,19 +1,19 @@
 use log::info;
 
-use crate::geometry::Vec3f;
+use glam::Vec3;
 
 pub struct Model {
-    pub verts: Vec<Vec3f>,
-    pub tex_coords: Vec<Vec3f>,
-    pub normals: Vec<Vec3f>,
+    pub verts: Vec<Vec3>,
+    pub tex_coords: Vec<Vec3>,
+    pub normals: Vec<Vec3>,
     pub faces: Vec<Vec<(i32,i32,i32)>>,
 }
 
 impl Model {
     pub fn new(model_filename: &str) -> Self {
-        let mut verts: Vec<Vec3f> = Vec::new();
-        let mut tex_coords: Vec<Vec3f> = Vec::new();
-        let mut normals: Vec<Vec3f> = Vec::new();
+        let mut verts: Vec<Vec3> = Vec::new();
+        let mut tex_coords: Vec<Vec3> = Vec::new();
+        let mut normals: Vec<Vec3> = Vec::new();
         let mut faces: Vec<Vec<(i32,i32,i32)>> = Vec::new();
 
         // Validate model_filename is obj
@@ -26,7 +26,7 @@ impl Model {
             .expect("Something went wrong reading the file");
 
 
-        // for each line in contents, read the line as Vec3f
+        // for each line in contents, read the line as Vec3
         for line in contents.split("\n") {
             if line.starts_with("#") || line.is_empty() {
                 continue;
@@ -36,21 +36,21 @@ impl Model {
                 let x = values[1].parse::<f32>().unwrap();
                 let y = values[2].parse::<f32>().unwrap();
                 let z = values[3].parse::<f32>().unwrap();
-                let vert: Vec3f = Vec3f { x, y, z };
+                let vert: Vec3 = Vec3 { x, y, z };
                 verts.push(vert);
             }
             else if values[0].eq("vt") {
                 let x = values[1].parse::<f32>().unwrap();
                 let y = values[2].parse::<f32>().unwrap();
                 let z = values[3].parse::<f32>().unwrap();
-                let tex: Vec3f = Vec3f { x, y, z };
+                let tex: Vec3 = Vec3 { x, y, z };
                 tex_coords.push(tex);
             } 
             else if values[0].eq("vn") {
                 let x = values[1].parse::<f32>().unwrap();
                 let y = values[2].parse::<f32>().unwrap();
                 let z = values[3].parse::<f32>().unwrap();
-                let norm: Vec3f = Vec3f { x, y, z };
+                let norm: Vec3 = Vec3 { x, y, z };
                 normals.push(norm);
             }
             else if values[0].eq("f") {

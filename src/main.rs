@@ -1,7 +1,8 @@
 mod renderer;
 mod model;
-mod geometry;
 mod texture;
+mod camera;
+mod scene;
 
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
