@@ -2,12 +2,13 @@ mod renderer;
 mod model;
 mod texture;
 mod camera;
-mod node;
+mod scene;
+mod command;
 
 use std::sync::Arc;
 
 use glam::Vec3;
-use node::ModelData;
+use scene::ModelData;
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
     event::{Event, WindowEvent},
@@ -45,12 +46,18 @@ fn main() {
         texture_id,
     });
 
-    println!("model_data: {:?}", model_data);
+    let camera_data = Arc::new(scene::CameraEntityData {
+        camera: camera_id,
+        speed: 0.1,
+    });
 
-    let mut scene_root = node::Node::new(glam::Mat4::IDENTITY, node::NodeType::Group);
-    scene_root.add_child(node::Node::new(glam::Mat4::IDENTITY, node::NodeType::Mesh(Arc::clone(&model_data))));
-    scene_root.add_child(node::Node::new(glam::Mat4::from_translation(glam::Vec3::new(-3.0, 0.0, -2.0)), node::NodeType::Mesh(Arc::clone(&model_data))));
-    scene_root.add_child(node::Node::new(glam::Mat4::from_translation(glam::Vec3::new(-5.0, 2.0, -5.0)), node::NodeType::Mesh(Arc::clone(&model_data))));
+    //println!("model_data: {:?}", model_data);
+
+    let mut scene_root = scene::Node::new(glam::Mat4::IDENTITY, scene::NodeType::Group);
+    scene_root.add_child(scene::Node::new(glam::Mat4::IDENTITY, scene::NodeType::Mesh(Arc::clone(&model_data))));
+    scene_root.add_child(scene::Node::new(glam::Mat4::from_translation(glam::Vec3::new(-3.0, 0.0, -2.0)), scene::NodeType::Mesh(Arc::clone(&model_data))));
+    scene_root.add_child(scene::Node::new(glam::Mat4::from_translation(glam::Vec3::new(-5.0, 2.0, -5.0)), scene::NodeType::Mesh(Arc::clone(&model_data))));
+    scene_root.add_child(scene::Node::new(glam::Mat4::from_translation(glam::Vec3::new(0.0, 0.0, -5.0)), scene::NodeType::Camera(Arc::clone(&camera_data))));
 
     let event_loop = EventLoop::new();
     let window = {
@@ -75,7 +82,7 @@ fn main() {
 
     if screenshot {
         println!("Taking screenshot...");
-        draw(&mut renderer, &mut pixels, &model_manager, &texture_manager, &camera_manager, &scene_root, screenshot);
+        renderer.render_scene(&scene_root, &model_manager, &texture_manager, &camera_manager, &mut pixels, screenshot);
 
     } else {
         let start_time = std::time::Instant::now();
@@ -87,15 +94,45 @@ fn main() {
 
 
             match event {
-                Event::WindowEvent {
-                    event: WindowEvent::CloseRequested,
-                    ..
-                } => *control_flow = ControlFlow::Exit,
+                Event::WindowEvent { event, .. } => match event {
+                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                    WindowEvent::KeyboardInput { device_id, input, is_synthetic } => {
+                        
+                    },
+                    WindowEvent::MouseInput { device_id, state, button, modifiers } => {
+                        // TODO: Handle mouse movement
+                        match button {
+                            winit::event::MouseButton::Left => {
+                                if state == winit::event::ElementState::Pressed {
+                                    println!("Left mouse button pressed");
+                                } else {
+                                    println!("Left mouse button released");
+                                }
+                            },
+                            winit::event::MouseButton::Right => {
+                                if state == winit::event::ElementState::Pressed {
+                                    println!("Right mouse button pressed");
+                                } else {
+                                    println!("Right mouse button released");
+                                }
+                            },
+                            winit::event::MouseButton::Middle => {
+                                if state == winit::event::ElementState::Pressed {
+                                    println!("Middle mouse button pressed");
+                                } else {
+                                    println!("Middle mouse button released");
+                                }
+                            },
+                            winit::event::MouseButton::Other(_) => (),
+                        }
+                    },
+                    _ => (), 
+                },
                 Event::RedrawRequested(_) => {
                     let delta = start_time.elapsed();
-                    draw(&mut renderer, &mut pixels, &model_manager, &texture_manager, &camera_manager, &scene_root, screenshot);
+                    renderer.render_scene(&scene_root, &model_manager, &texture_manager, &camera_manager, &mut pixels, screenshot);
                     let time_since_last_frame = last_frame_start.elapsed();
-                    //println!("FPS: {}", 1.0 / time_since_last_frame.as_secs_f32());
+                    println!("FPS: {}", 1.0 / time_since_last_frame.as_secs_f32());
                     last_frame_start = std::time::Instant::now();
                 }
                 _ => (),
@@ -105,23 +142,4 @@ fn main() {
         });
     }
 
-}
-
-fn draw(image: &mut renderer::Renderer,
-        pixels: &mut Pixels,
-        model_manager: &model::ModelManager,
-        texture_manager: &texture::TextureManager,
-        camera_manager: &camera::CameraManager,
-        node: &node::Node,
-        is_screenshot: bool) {
-    image.reset_z_buffer();
-    image.clear(renderer::Color::new(0, 0, 0, 255));
-    image.render_scene(node, model_manager, texture_manager, camera_manager);
-    image.flip_vertically();
-    if is_screenshot {
-        image.save("screenshot.png");
-    } else {
-        image.write_to_buffer(pixels.frame_mut());
-        pixels.render().unwrap();
-    }
 }

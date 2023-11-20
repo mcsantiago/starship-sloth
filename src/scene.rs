@@ -1,13 +1,20 @@
 use std::sync::Arc;
 
 use glam::{Vec3, Mat4};
+use winit::event::WindowEvent;
 
-use crate::{texture::TextureId, model::ModelId};
+use crate::{texture::TextureId, model::ModelId, camera::{Camera, CameraId}};
+
+trait Scene {
+    fn handle_input(&mut self, input: &WindowEvent);
+    fn update(&mut self, delta_time: f32);
+}
 
 #[derive(Debug)]
 pub enum NodeType {
     Mesh(Arc<ModelData>),
     Light(Arc<Vec3>),
+    Camera(Arc<CameraEntityData>),
     Group,
 }
 
@@ -18,10 +25,25 @@ pub struct ModelData {
 }
 
 #[derive(Debug)]
+pub struct CameraEntityData {
+    pub camera: CameraId,
+    pub speed: f32,
+}
+
+#[derive(Debug)]
 pub struct Node {
     pub transformation: Mat4,
     pub node_type: NodeType,
     children: Vec<Box<Node>>,
+}
+
+impl Scene for Node {
+    fn handle_input(&mut self, input: &WindowEvent) {
+        // TODO
+    }
+    fn update(&mut self, delta_time: f32) {
+        // TODO
+    }
 }
 
 impl Node {

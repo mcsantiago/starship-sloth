@@ -1,6 +1,6 @@
 use std::mem::size_of;
 
-use crate::{model, texture, node, camera};
+use crate::{model, texture, scene, camera};
 use glam::{IVec2, Vec2, Vec3, Vec4, Mat4};
 
 
@@ -276,17 +276,20 @@ impl Renderer {
     }
 
     pub fn render_scene(&mut self,
-                        node: &node::Node,
+                        node: &scene::Node,
                         model_manager: &model::ModelManager,
                         texture_manager: &texture::TextureManager,
-                        camera_manager: &camera::CameraManager) {
+                        camera_manager: &camera::CameraManager,
+                        pixels: &mut pixels::Pixels,
+                        is_screenshot: bool) {
+        self.reset_z_buffer();
+        self.clear(Color::new(0, 0, 0, 255));
         let root_transform = Mat4::IDENTITY;
-        println!("Node: {:?}", node);
         let camera = camera_manager.get_active_camera();
         
         node.traverse(root_transform, &mut |node, world_transform| {
             match &node.node_type {
-                node::NodeType::Mesh(mesh) => {
+                scene::NodeType::Mesh(mesh) => {
                     match camera {
                         Some(camera) => {
                             let model_matrix = world_transform;
@@ -299,10 +302,18 @@ impl Renderer {
                         None => {}
                     }
                 },
-                node::NodeType::Light(_) => {},
+                scene::NodeType::Light(_) => {},
                 _ => {}
             }
         });
+
+        self.flip_vertically();
+        if is_screenshot {
+            self.save("screenshot.png");
+        } else {
+            self.write_to_buffer(pixels.frame_mut());
+            pixels.render().unwrap();
+        }
     }
 
     pub fn flip_vertically(&mut self) {
