@@ -38,7 +38,8 @@ fn main() {
                             45.0,
                             WIDTH as f32 / HEIGHT as f32,
                             0.1,
-                            100.0,));
+                            100.0,
+                            0.5));
     camera_manager.set_active_camera(camera_id);
 
     let model_data = Arc::new(ModelData {
@@ -96,9 +97,6 @@ fn main() {
             match event {
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                    WindowEvent::KeyboardInput { device_id, input, is_synthetic } => {
-                        
-                    },
                     WindowEvent::MouseInput { device_id, state, button, modifiers } => {
                         // TODO: Handle mouse movement
                         match button {
@@ -126,13 +124,55 @@ fn main() {
                             winit::event::MouseButton::Other(_) => (),
                         }
                     },
+                    WindowEvent::KeyboardInput { device_id, input, is_synthetic } => {
+                        match input {
+                            winit::event::KeyboardInput { scancode, state, virtual_keycode, modifiers } => {
+                                match virtual_keycode {
+                                    Some(winit::event::VirtualKeyCode::W) => {
+                                        match state {
+                                            winit::event::ElementState::Pressed => {
+                                                camera_manager.move_active_camera(Vec3::new(0.0, 0.0, -1.0))
+                                            },
+                                            winit::event::ElementState::Released => { },
+                                        }
+                                    },
+                                    Some(winit::event::VirtualKeyCode::S) => {
+                                        match state {
+                                            winit::event::ElementState::Pressed => {
+                                                camera_manager.move_active_camera(Vec3::new(0.0, 0.0, 1.0))
+                                            },
+                                            winit::event::ElementState::Released => { },
+                                        }
+                                    },
+                                    Some(winit::event::VirtualKeyCode::A) => {
+                                        match state {
+                                            winit::event::ElementState::Pressed => {
+                                                camera_manager.move_active_camera(Vec3::new(-1.0, 0.0, 0.0))
+                                            },
+                                            winit::event::ElementState::Released => { },
+                                        }
+                                    },
+                                    Some(winit::event::VirtualKeyCode::D) => {
+                                        match state {
+                                            winit::event::ElementState::Pressed => {
+                                                camera_manager.move_active_camera(Vec3::new(1.0, 0.0, 0.0))
+                                            },
+                                            winit::event::ElementState::Released => { },
+                                        }
+                                    },
+                                    Some(_) => (),
+                                    None => (),
+                                }
+                            },
+                        }
+                    },
                     _ => (), 
                 },
                 Event::RedrawRequested(_) => {
                     let delta = start_time.elapsed();
                     renderer.render_scene(&scene_root, &model_manager, &texture_manager, &camera_manager, &mut pixels, screenshot);
                     let time_since_last_frame = last_frame_start.elapsed();
-                    println!("FPS: {}", 1.0 / time_since_last_frame.as_secs_f32());
+                    //println!("FPS: {}", 1.0 / time_since_last_frame.as_secs_f32());
                     last_frame_start = std::time::Instant::now();
                 }
                 _ => (),
@@ -141,5 +181,4 @@ fn main() {
             window.request_redraw();
         });
     }
-
 }

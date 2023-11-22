@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use glam::{Vec3, Mat4};
 
+#[derive(Debug)]
 pub struct Camera {
     pub position: Vec3,
     pub target: Vec3,
@@ -10,6 +11,8 @@ pub struct Camera {
     pub aspect_ratio: f32,
     pub z_near: f32,
     pub z_far: f32,
+
+    pub speed: f32,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -51,10 +54,18 @@ impl CameraManager {
     pub fn set_active_camera(&mut self, id: CameraId) {
         self.active_camera = Some(id);
     }
+
+    pub fn move_active_camera(&mut self, direction: Vec3) {
+        if let Some(camera) = self.get_active_camera_mut() {
+            let direction = direction.normalize();
+            camera.position += direction * camera.speed;
+            camera.target += direction * camera.speed;
+        }
+    }
 }
 
 impl Camera {
-    pub fn new(position: Vec3, target: Vec3, up: Vec3, fov: f32, aspect_ratio: f32, z_near: f32, z_far: f32) -> Self {
+    pub fn new(position: Vec3, target: Vec3, up: Vec3, fov: f32, aspect_ratio: f32, z_near: f32, z_far: f32, speed: f32) -> Self {
         Self {
             position,
             target,
@@ -63,6 +74,7 @@ impl Camera {
             aspect_ratio,
             z_near,
             z_far,
+            speed
         }
     }
 
