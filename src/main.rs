@@ -124,6 +124,13 @@ fn main() {
                             winit::event::MouseButton::Other(_) => (),
                         }
                     },
+                    // TODO: Get mouse position on screen
+                    WindowEvent::CursorMoved { device_id, position, modifiers } => {
+                        println!("Cursor moved: {:?}", position);
+                        let angle = 0.1;
+                        let axis = Vec3::new(0.0, 1.0, 0.0);
+                        camera_manager.rotate_active_camera(angle, axis);
+                    },
                     WindowEvent::KeyboardInput { device_id, input, is_synthetic } => {
                         match input {
                             winit::event::KeyboardInput { scancode, state, virtual_keycode, modifiers } => {

@@ -62,6 +62,14 @@ impl CameraManager {
             camera.target += direction * camera.speed;
         }
     }
+
+    pub fn rotate_active_camera(&mut self, angle: f32, axis: Vec3) {
+        if let Some(camera) = self.get_active_camera_mut() {
+            let rotation = Mat4::from_axis_angle(axis, angle);
+            let direction = (camera.target - camera.position).normalize();
+            camera.target = camera.position + rotation.transform_vector3(direction);
+        }
+    }
 }
 
 impl Camera {
