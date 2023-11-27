@@ -55,14 +55,6 @@ impl CameraManager {
         self.active_camera = Some(id);
     }
 
-    pub fn move_active_camera(&mut self, direction: Vec3) {
-        if let Some(camera) = self.get_active_camera_mut() {
-            let direction = direction.normalize();
-            camera.position += direction * camera.speed;
-            camera.target += direction * camera.speed;
-        }
-    }
-
     pub fn rotate_active_camera(&mut self, angle: f32, axis: Vec3) {
         if let Some(camera) = self.get_active_camera_mut() {
             let rotation = Mat4::from_axis_angle(axis, angle);
@@ -87,10 +79,30 @@ impl Camera {
     }
 
     pub fn get_view_matrix(&self) -> Mat4 {
-        Mat4::look_at_rh(self.position, self.target, self.up)
+        let world_up = Vec3::new(0.0, 1.0, 0.0);
+        let camera_direction = Vec3::normalize(self.position - self.target);
+        let camera_right = Vec3::normalize(Vec3::cross(world_up, self.target));
+        let camera_up = Vec3::normalize(Vec3::cross(camera_direction, camera_right));
+        Mat4::look_at_rh(self.position, camera_direction, camera_up)
     }
 
     pub fn get_projection_matrix(&self) -> Mat4 {
         Mat4::perspective_rh(self.fov, self.aspect_ratio, self.z_near, self.z_far)
+    }
+
+    pub fn set_target(&mut self, target: Vec3) {
+        self.target = target;
+    }
+
+    pub fn get_front(&self) -> Vec3 {
+        Vec3::normalize(self.target - self.position)
+    }
+
+    pub fn get_right(&self) -> Vec3 {
+        Vec3::normalize(Vec3::cross(self.get_front(), self.up))
+    }
+
+    pub fn get_up(&self) -> Vec3 {
+        Vec3::normalize(Vec3::cross(self.get_right(), self.get_front()))
     }
 }

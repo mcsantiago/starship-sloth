@@ -1,14 +1,10 @@
-use std::sync::Arc;
+use std::{sync::Arc, fmt};
 
-use glam::{Vec3, Mat4};
-use winit::event::WindowEvent;
+use glam::{Vec3, Mat4, Quat};
 
-use crate::{texture::TextureId, model::ModelId, camera::{Camera, CameraId}};
+use crate::{texture::TextureId, model::ModelId, camera::CameraId, command::InputManager};
 
-trait Scene {
-    fn handle_input(&mut self, input: &WindowEvent);
-    fn update(&mut self, delta_time: f32);
-}
+type UpdateFn = Box<dyn Fn(&Node, &InputManager, f32)>;
 
 #[derive(Debug)]
 pub enum NodeType {
@@ -30,25 +26,48 @@ pub struct CameraEntityData {
     pub speed: f32,
 }
 
-#[derive(Debug)]
 pub struct Node {
-    pub transformation: Mat4,
+    update_fn: UpdateFn,
+    pub transformation: Transform,
     pub node_type: NodeType,
     children: Vec<Box<Node>>,
 }
 
-impl Scene for Node {
-    fn handle_input(&mut self, input: &WindowEvent) {
-        // TODO
+impl fmt::Debug for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Node")
+            .field("transformation", &self.transformation)
+            .field("node_type", &self.node_type)
+            .field("children", &self.children)
+            .finish()
     }
-    fn update(&mut self, delta_time: f32) {
-        // TODO
+}
+
+#[derive(Debug)]
+pub struct Transform {
+    pub position: Vec3,
+    pub rotation: Quat,
+    pub scale: Vec3,
+}
+
+impl Transform {
+    pub fn new(position: Vec3, rotation: Quat, scale: Vec3) -> Self {
+        Self {
+            position,
+            rotation,
+            scale,
+        }
+    }
+
+    pub fn get_model_matrix(&self) -> Mat4 {
+        Mat4::from_scale_rotation_translation(self.scale, self.rotation, self.position)
     }
 }
 
 impl Node {
-    pub fn new(transformation: Mat4, node_type: NodeType) -> Self {
+    pub fn new(update_fn: UpdateFn, transformation: Transform, node_type: NodeType) -> Self {
         Self {
+            update_fn,
             transformation,
             node_type,
             children: Vec::new(),
@@ -60,7 +79,7 @@ impl Node {
     }
 
     pub fn get_transformation(&self) -> Mat4 {
-        self.transformation
+        self.transformation.get_model_matrix()
     }
 
     pub fn get_node_type(&self) -> &NodeType {
@@ -73,12 +92,19 @@ impl Node {
 
     pub fn traverse<F: FnMut(&Node, Mat4)> (&self, parent_transformation: Mat4, action: &mut F) -> Vec<(Mat4, &NodeType)> {
         let mut result = Vec::new();
-        let transformation = parent_transformation * self.transformation;
+        let transformation = parent_transformation * self.transformation.get_model_matrix();
         result.push((transformation, &self.node_type));
         action(self, transformation);
         for child in &self.children {
             result.append(&mut child.traverse(transformation, action));
         }
         result
+    }
+
+    fn update(&self, input_manager: &InputManager, delta_time: f32) {
+        (self.update_fn)(self, input_manager, delta_time);
+        for child in &self.children {
+            child.update(input_manager, delta_time);
+        }
     }
 }

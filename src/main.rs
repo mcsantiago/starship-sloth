@@ -4,21 +4,24 @@ mod texture;
 mod camera;
 mod scene;
 mod command;
+mod behaviors;
 
 use std::sync::Arc;
 
+use behaviors::standard_camera_update;
 use glam::Vec3;
-use scene::ModelData;
+use scene::{ModelData, Transform};
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder, dpi::LogicalSize,
 };
+use command::InputManager;
 
 const WIDTH: usize = 800;
 const HEIGHT: usize = 600;
-const WINDOW_TITLE: &str = "SlothEngine";
+const WINDOW_TITLE: &str = "Sloth Engine";
 
 fn main() {
     env_logger::init();
@@ -39,7 +42,7 @@ fn main() {
                             WIDTH as f32 / HEIGHT as f32,
                             0.1,
                             100.0,
-                            0.5));
+                            0.05));
     camera_manager.set_active_camera(camera_id);
 
     let model_data = Arc::new(ModelData {
@@ -54,11 +57,55 @@ fn main() {
 
     //println!("model_data: {:?}", model_data);
 
-    let mut scene_root = scene::Node::new(glam::Mat4::IDENTITY, scene::NodeType::Group);
-    scene_root.add_child(scene::Node::new(glam::Mat4::IDENTITY, scene::NodeType::Mesh(Arc::clone(&model_data))));
-    scene_root.add_child(scene::Node::new(glam::Mat4::from_translation(glam::Vec3::new(-3.0, 0.0, -2.0)), scene::NodeType::Mesh(Arc::clone(&model_data))));
-    scene_root.add_child(scene::Node::new(glam::Mat4::from_translation(glam::Vec3::new(-5.0, 2.0, -5.0)), scene::NodeType::Mesh(Arc::clone(&model_data))));
-    scene_root.add_child(scene::Node::new(glam::Mat4::from_translation(glam::Vec3::new(0.0, 0.0, -5.0)), scene::NodeType::Camera(Arc::clone(&camera_data))));
+    let position = glam::Vec3::new(0.0, 0.0, 0.0);
+    let rotation = glam::Quat::from_rotation_y(0.0);
+    let scale = glam::Vec3::new(1.0, 1.0, 1.0);
+    let mut scene_root = scene::Node::new(
+        Box::new(|_node, _input_manager, _delta_time| {}), 
+        Transform::new(position, rotation, scale), 
+        scene::NodeType::Group);
+
+    scene_root.add_child(
+        scene::Node::new(
+            Box::new(|_node, _input_manager, _delta_time| {}), 
+            Transform::new(
+                glam::Vec3::new(3.0, 0.0, -5.0), 
+                rotation, 
+                scale), 
+            scene::NodeType::Mesh(Arc::clone(&model_data))));
+
+    scene_root.add_child(
+        scene::Node::new(
+            Box::new(|_node, _input_manager, _delta_time| {}), 
+            Transform::new(
+                glam::Vec3::new(-3.0, 0.0, -2.0), 
+                rotation, 
+                scale), 
+            scene::NodeType::Mesh(Arc::clone(&model_data))));
+
+    scene_root.add_child(
+        scene::Node::new(
+            Box::new(|_node, _input_manager, _delta_time| {}), 
+            Transform::new(
+                glam::Vec3::new(-5.0, 2.0, -5.0), 
+                rotation, 
+                scale), 
+            scene::NodeType::Mesh(Arc::clone(&model_data))));
+
+    scene_root.add_child(
+        scene::Node::new(
+            Box::new(|node, input_manager, delta_time| {
+                standard_camera_update(node, input_manager, delta_time)
+            }), 
+            Transform::new(
+                glam::Vec3::new(0.0, 0.0, -5.0), 
+                rotation, 
+                scale), 
+            scene::NodeType::Camera(Arc::clone(&camera_data))));
+
+    /*
+    scene_root.add_child(scene::Node::new(standard_camera_update, glam::Mat4::from_translation(glam::Vec3::new(0.0, 0.0, -5.0)), scene::NodeType::Camera(Arc::clone(&camera_data))));
+    */
 
     let event_loop = EventLoop::new();
     let window = {
@@ -89,10 +136,10 @@ fn main() {
         let start_time = std::time::Instant::now();
         let animation_duration = std::time::Duration::from_secs(10);
         let mut last_frame_start = start_time;
+        let mut input_manager = InputManager::new();
 
         event_loop.run(move |event, _, control_flow| {
             *control_flow = ControlFlow::Poll;
-
 
             match event {
                 Event::WindowEvent { event, .. } => match event {
@@ -124,53 +171,19 @@ fn main() {
                             winit::event::MouseButton::Other(_) => (),
                         }
                     },
-                    // TODO: Get mouse position on screen
                     WindowEvent::CursorMoved { device_id, position, modifiers } => {
                         println!("Cursor moved: {:?}", position);
-                        let angle = 0.1;
-                        let axis = Vec3::new(0.0, 1.0, 0.0);
-                        camera_manager.rotate_active_camera(angle, axis);
+                        let mut camera = camera_manager.get_active_camera_mut();
+                        match camera {
+                            Some(camera) => {
+                            },
+                            None => (),
+                        }
                     },
                     WindowEvent::KeyboardInput { device_id, input, is_synthetic } => {
-                        match input {
-                            winit::event::KeyboardInput { scancode, state, virtual_keycode, modifiers } => {
-                                match virtual_keycode {
-                                    Some(winit::event::VirtualKeyCode::W) => {
-                                        match state {
-                                            winit::event::ElementState::Pressed => {
-                                                camera_manager.move_active_camera(Vec3::new(0.0, 0.0, -1.0))
-                                            },
-                                            winit::event::ElementState::Released => { },
-                                        }
-                                    },
-                                    Some(winit::event::VirtualKeyCode::S) => {
-                                        match state {
-                                            winit::event::ElementState::Pressed => {
-                                                camera_manager.move_active_camera(Vec3::new(0.0, 0.0, 1.0))
-                                            },
-                                            winit::event::ElementState::Released => { },
-                                        }
-                                    },
-                                    Some(winit::event::VirtualKeyCode::A) => {
-                                        match state {
-                                            winit::event::ElementState::Pressed => {
-                                                camera_manager.move_active_camera(Vec3::new(-1.0, 0.0, 0.0))
-                                            },
-                                            winit::event::ElementState::Released => { },
-                                        }
-                                    },
-                                    Some(winit::event::VirtualKeyCode::D) => {
-                                        match state {
-                                            winit::event::ElementState::Pressed => {
-                                                camera_manager.move_active_camera(Vec3::new(1.0, 0.0, 0.0))
-                                            },
-                                            winit::event::ElementState::Released => { },
-                                        }
-                                    },
-                                    Some(_) => (),
-                                    None => (),
-                                }
-                            },
+                        if let Some(keycode) = input.virtual_keycode {
+                            let is_pressed = input.state == winit::event::ElementState::Pressed;
+                            input_manager.set_key_pressed(keycode, is_pressed);
                         }
                     },
                     _ => (), 
